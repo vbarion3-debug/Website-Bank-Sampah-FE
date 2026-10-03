@@ -4,13 +4,28 @@ const ADMIN_TOKEN_KEY = 'admin_session_token'
 
 export const getAdminToken = () => localStorage.getItem(ADMIN_TOKEN_KEY) || ''
 export const setAdminToken = (token) => localStorage.setItem(ADMIN_TOKEN_KEY, token)
+
+// Diperbarui: Menambahkan penghapusan 'admin_nama'
 export const clearAdminToken = () => {
   localStorage.removeItem(ADMIN_TOKEN_KEY)
   localStorage.removeItem('admin_username')
+  localStorage.removeItem('admin_nama')
 }
 
 export const getAdminUsername = () => localStorage.getItem('admin_username') || ''
 export const setAdminUsername = (username) => localStorage.setItem('admin_username', username)
+
+// Tambahan: Getter dan setter untuk admin_nama
+export const getAdminName = () => localStorage.getItem('admin_nama') || ''
+export const setAdminName = (nama) => localStorage.setItem('admin_nama', nama)
+
+// Tambahan: Helper untuk format URL file
+export const getFileUrl = (path) => {
+  if (!path) return null
+  if (/^https?:\/\//.test(path)) return path
+  return `${API_BASE_URL}${path}`
+}
+
 export const getAuthHeaders = () => {
   const token = getAdminToken()
   return token ? { Authorization: `Bearer ${token}` } : {}
@@ -24,6 +39,10 @@ export const API = {
 
   transaksiCreate: `${API_BASE_URL}/transaksi/create`,
   transaksiHistory: `${API_BASE_URL}/transaksi/history-admin`,
+  // Tambahan: Endpoint transaksi baru
+  transaksiDetail: (id) => `${API_BASE_URL}/transaksi/${id}`,
+  transaksiItem: (idTransaksi, idDetail) => `${API_BASE_URL}/transaksi/${idTransaksi}/detail/${idDetail}`,
+  transaksiItemAdd: (idTransaksi) => `${API_BASE_URL}/transaksi/${idTransaksi}/detail`,
 
   nasabah: `${API_BASE_URL}/admin/nasabah/`,
   nasabahSearch: (search) =>
@@ -55,6 +74,7 @@ export const API = {
   superAdminLogin: `${API_BASE_URL}/auth/super-admin/login`,
   superAdminVerifyOtp: `${API_BASE_URL}/auth/super-admin/verify-otp`,
   superAdminLogout: `${API_BASE_URL}/auth/super-admin/logout`,
+  
   chatConversations: `${API_BASE_URL}/chat/conversations`,
   chatClaim: (nik) => `${API_BASE_URL}/chat/claim/${nik}`,
   chatRelease: (nik) => `${API_BASE_URL}/chat/release/${nik}`,
@@ -69,7 +89,6 @@ export async function parseResponse(response) {
     throw new Error(message)
   }
   return data
-
 }
 
 export const chatHistory = (nik) => `${API_BASE_URL}/chat/history/${nik}`

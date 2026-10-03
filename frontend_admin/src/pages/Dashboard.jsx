@@ -1,907 +1,775 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from "react";
 import {
-  ScanLine,
-  Scale,
-  Save,
-  Printer,
-  UserRound,
   PackageCheck,
+  AlertTriangle,
+  Scale,
   Search,
+  Pencil,
+  Trash2,
+  Plus,
+  Save,
+  X,
+  ImageOff,
+  UserRound,
   Loader2,
-} from 'lucide-react'
+} from "lucide-react";
+import PageHeader from "../components/PageHeader";
+import Modal from "../components/Modal";
+import {
+  API,
+  getAuthHeaders,
+  parseResponse,
+  getAdminName,
+  getAdminUsername,
+  getFileUrl,
+} from "../api";
 
-import PageHeader from '../components/PageHeader'
-import { API, getAuthHeaders } from '../api'
+const CONFIDENCE_THRESHOLD = 80;
 
-
-// ======================================================
-// HELPER
-// ======================================================
-
-const formatRupiah = (value) => {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0,
-  }).format(value || 0)
+function formatRupiah(value) {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
 }
 
+function formatBerat(value) {
+  return `${Number(value || 0).toLocaleString("id-ID")} kg`;
+}
 
-// ======================================================
-// DASHBOARD
-// ======================================================
+function formatTanggal(iso) {
+  if (!iso) return "-";
+  return new Date(iso).toLocaleString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function SummaryCard({ icon: Icon, label, value, tone = "default" }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-center gap-3">
+        <div
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+            tone === "amber"
+              ? "bg-amber-50 text-amber-600"
+              : "bg-emerald-50 text-emerald-600"
+          }`}
+        >
+          <Icon size={19} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-bold text-slate-500">{label}</p>
+          <p className="truncate font-['Poppins'] text-xl font-bold text-slate-800">
+            {value}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Dashboard() {
-  // -----------------------------
-  // NASABAH
-  // -----------------------------
+  const adminNama = getAdminName() || getAdminUsername() || "Admin";
 
-  const [nik, setNik] = useState('')
-  const [nasabah, setNasabah] = useState(null)
-
-  const [loadingNasabah, setLoadingNasabah] = useState(false)
-  const [nasabahError, setNasabahError] = useState('')
-
-
-  // -----------------------------
-  // JENIS SAMPAH (dari backend)
-  // -----------------------------
-
-  const [daftarJenis, setDaftarJenis] = useState([])
-  const [loadingJenis, setLoadingJenis] = useState(true)
-
-
-  // -----------------------------
-  // TRANSAKSI
-  // -----------------------------
-
-  // idJenis = id_jenis yang dipilih (dikirim ke backend)
-  const [idJenis, setIdJenis] = useState('')
-  const [berat, setBerat] = useState('')
-
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState('')
-
-  const [saved, setSaved] = useState(false)
-  const [receipt, setReceipt] = useState(null)
-
-
-  // -----------------------------
-  // AKTIVITAS
-  // -----------------------------
-
-  const [aktivitas, setAktivitas] = useState([])
-  const [loadingAktivitas, setLoadingAktivitas] = useState(false)
-
-
-  // ======================================================
-  // JENIS SAMPAH YANG SEDANG DIPILIH
-  // ======================================================
-
-  const jenisTerpilih = daftarJenis.find(
-    (j) => String(j.id_jenis ?? j.id) === String(idJenis)
-  )
-
-  const hargaPerKg = jenisTerpilih?.harga_per_kg || 0
-  const namaJenisTerpilih = jenisTerpilih?.nama_jenis || jenisTerpilih?.nama || ''
-
-
-  // ======================================================
-  // HITUNG TOTAL
-  // ======================================================
-
-  const total = Number(berat || 0) * Number(hargaPerKg || 0)
-
-
-  // ======================================================
-  // AMBIL DAFTAR JENIS SAMPAH SAAT HALAMAN DIBUKA
-  // ======================================================
+  // =========================================================
+  // DAFTAR JENIS SAMPAH (buat dropdown edit/tambah/manual)
+  // =========================================================
+  const [daftarJenis, setDaftarJenis] = useState([]);
 
   useEffect(() => {
-    async function fetchJenisSampah() {
+    async function fetchJenis() {
       try {
-        setLoadingJenis(true)
-
-        const response = await fetch(API.jenisSampah, {
-          headers: getAuthHeaders(),
-        })
-
-        if (!response.ok) {
-          throw new Error('Gagal mengambil daftar jenis sampah.')
-        }
-
-        const result = await response.json()
-
-        const data = Array.isArray(result)
-          ? result
-          : result.data || []
-
-        setDaftarJenis(data)
-
-        // Pilih jenis pertama sebagai default
-        if (data.length > 0) {
-          setIdJenis(String(data[0].id_jenis ?? data[0].id))
-        }
+        const response = await fetch(API.jenisSampah, { headers: getAuthHeaders() });
+        const result = await parseResponse(response);
+        setDaftarJenis(Array.isArray(result) ? result : []);
       } catch (err) {
-        console.error(err)
-        // Nggak bikin dashboard rusak total, cuma dropdown kosong
-      } finally {
-        setLoadingJenis(false)
+        console.error(err);
       }
     }
+    fetchJenis();
+  }, []);
 
-    fetchJenisSampah()
-  }, [])
+  // =========================================================
+  // LIST TRANSAKSI MASUK
+  // =========================================================
+  const [transaksiList, setTransaksiList] = useState([]);
+  const [loadingList, setLoadingList] = useState(true);
+  const [listError, setListError] = useState("");
+  const [searchNik, setSearchNik] = useState("");
+  const [onlyFlagged, setOnlyFlagged] = useState(false);
 
-
-  // ======================================================
-  // CARI NASABAH BERDASARKAN NIK
-  // ======================================================
-
-  const handleCariNasabah = async () => {
-    if (!nik.trim()) {
-      setNasabahError('NIK harus diisi.')
-      return
-    }
-
-    setLoadingNasabah(true)
-    setNasabahError('')
-    setNasabah(null)
-
+  async function fetchTransaksiList() {
     try {
-      // Endpoint: GET /admin/nasabah/{nik} (protected)
-      const response = await fetch(API.nasabahDetail(nik.trim()), {
-        headers: getAuthHeaders(),
-      })
-
-      if (!response.ok) {
-        throw new Error('Nasabah tidak ditemukan.')
-      }
-
-      const result = await response.json()
-      const data = result.data || result
-
-      setNasabah(data)
-
-      // Setelah nasabah ditemukan, ambil aktivitas transaksinya
-      handleGetAktivitas(nik.trim())
-    } catch (error) {
-      console.error(error)
-      setNasabahError(error.message || 'Gagal mengambil data nasabah.')
+      setLoadingList(true);
+      setListError("");
+      const response = await fetch(API.transaksiHistory, { headers: getAuthHeaders() });
+      const result = await parseResponse(response);
+      setTransaksiList(Array.isArray(result) ? result : []);
+    } catch (err) {
+      console.error(err);
+      setListError(err.message);
     } finally {
-      setLoadingNasabah(false)
+      setLoadingList(false);
     }
   }
 
+  useEffect(() => {
+    fetchTransaksiList();
+  }, []);
 
-  // ======================================================
-  // AMBIL AKTIVITAS TRANSAKSI NASABAH
-  // ======================================================
-  // Catatan: backend belum diketahui punya endpoint history
-  // yang bisa difilter per-NIK, jadi kita ambil semua riwayat
-  // lalu filter di frontend. Kalau backend ternyata support
-  // query (misal /transaksi/history?nik=...), ini bisa
-  // disederhanakan.
+  const filteredList = transaksiList.filter((t) => {
+    if (onlyFlagged && !t.ada_flag) return false;
+    if (searchNik.trim()) {
+      const q = searchNik.trim().toLowerCase();
+      return (
+        t.nik?.toLowerCase().includes(q) ||
+        t.nama_nasabah?.toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
 
-  const handleGetAktivitas = async (nikNasabah) => {
-    setLoadingAktivitas(true)
+  const totalFlagged = transaksiList.filter((t) => t.ada_flag).length;
+  const totalNilaiSemua = transaksiList.reduce(
+    (sum, t) => sum + Number(t.total_nilai || 0),
+    0
+  );
 
+  // =========================================================
+  // MODAL DETAIL TRANSAKSI
+  // =========================================================
+  const [selectedId, setSelectedId] = useState(null);
+  const [detailData, setDetailData] = useState(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [detailError, setDetailError] = useState("");
+
+  async function openDetail(id) {
+    setSelectedId(id);
+    setDetailData(null);
+    setDetailError("");
+    setEditingDetailId(null);
+    setShowAddForm(false);
     try {
-      const response = await fetch(API.transaksiHistory, {
-        headers: getAuthHeaders(),
-      })
-
-      if (!response.ok) {
-        throw new Error('Gagal mengambil aktivitas transaksi.')
-      }
-
-      const result = await response.json()
-
-      const history = Array.isArray(result)
-        ? result
-        : result.data || []
-
-      // Flatten detail transaksi (kalau backend kirim array detail per transaksi)
-      const flattened = history.flatMap((trx) => {
-        const details = Array.isArray(trx.detail)
-          ? trx.detail
-          : Array.isArray(trx.details)
-          ? trx.details
-          : null
-
-        if (!details) {
-          return [trx]
-        }
-
-        return details.map((detail, index) => ({
-          ...trx,
-          ...detail,
-          id_transaksi:
-            trx.id_transaksi ?? trx.transaksi_id ?? trx.id ?? `TRX-${index + 1}`,
-          nik: trx.nik ?? trx.nik_nasabah ?? '',
-          jenis_sampah:
-            detail.nama_jenis ?? detail.jenis_sampah ?? 'Tidak diketahui',
-          berat: detail.berat ?? trx.berat ?? 0,
-          total: detail.total ?? detail.nominal ?? trx.total ?? trx.nominal ?? 0,
-        }))
-      })
-
-      // Filter hanya transaksi milik nasabah ini
-      const milikNasabah = flattened.filter(
-        (item) => String(item.nik) === String(nikNasabah)
-      )
-
-      setAktivitas(milikNasabah)
-    } catch (error) {
-      console.error(error)
-      setAktivitas([])
+      setLoadingDetail(true);
+      const response = await fetch(API.transaksiDetail(id), { headers: getAuthHeaders() });
+      const result = await parseResponse(response);
+      setDetailData(result);
+    } catch (err) {
+      console.error(err);
+      setDetailError(err.message);
     } finally {
-      setLoadingAktivitas(false)
+      setLoadingDetail(false);
     }
   }
 
+  function closeDetail() {
+    setSelectedId(null);
+    setDetailData(null);
+    setEditingDetailId(null);
+    setShowAddForm(false);
+  }
 
-  // ======================================================
-  // SIMPAN TRANSAKSI
-  // ======================================================
+  async function refreshAfterChange() {
+    await openDetail(selectedId);
+    await fetchTransaksiList();
+  }
 
-  const handleSimpanTransaksi = async () => {
-    if (!nasabah) {
-      setSaveError('Cari nasabah berdasarkan NIK terlebih dahulu.')
-      return
+  // =========================================================
+  // EDIT 1 ITEM SAMPAH
+  // =========================================================
+  const [editingDetailId, setEditingDetailId] = useState(null);
+  const [editForm, setEditForm] = useState({ id_jenis: "", berat: "" });
+  const [savingItem, setSavingItem] = useState(false);
+
+  function startEditItem(item) {
+    setEditingDetailId(item.id_detail);
+    setEditForm({ id_jenis: String(item.id_jenis), berat: String(item.berat) });
+  }
+
+  async function saveEditItem() {
+    if (!editForm.id_jenis || !editForm.berat || Number(editForm.berat) <= 0) {
+      alert("Jenis sampah dan berat wajib diisi dengan benar.");
+      return;
     }
-
-    if (!idJenis) {
-      setSaveError('Jenis sampah belum dipilih.')
-      return
-    }
-
-    if (!berat || Number(berat) <= 0) {
-      setSaveError('Berat sampah harus lebih dari 0 kg.')
-      return
-    }
-
-    setSaving(true)
-    setSaveError('')
-    setSaved(false)
-
-    // Sesuai kontrak backend: POST /transaksi/create
-    const transaksiData = {
-      nik: nik.trim(),
-      detail: [
-        {
-          id_jenis: Number(idJenis),
-          berat: Number(berat),
-        },
-      ],
-      keterangan: 'Input manual dari dashboard admin',
-    }
-
     try {
+      setSavingItem(true);
+      const response = await fetch(API.transaksiItem(selectedId, editingDetailId), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({
+          id_jenis: Number(editForm.id_jenis),
+          berat: Number(editForm.berat),
+        }),
+      });
+      await parseResponse(response);
+      setEditingDetailId(null);
+      await refreshAfterChange();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSavingItem(false);
+    }
+  }
+
+  async function deleteItem(item) {
+    const yakin = window.confirm(
+      `Hapus item "${item.nama_jenis || item.jenis_terdeteksi}" dari transaksi ini?`
+    );
+    if (!yakin) return;
+    try {
+      setSavingItem(true);
+      const response = await fetch(API.transaksiItem(selectedId, item.id_detail), {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      await parseResponse(response);
+      await refreshAfterChange();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSavingItem(false);
+    }
+  }
+
+  // =========================================================
+  // TAMBAH ITEM SAMPAH BARU
+  // =========================================================
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addForm, setAddForm] = useState({ id_jenis: "", berat: "" });
+
+  function openAddForm() {
+    setAddForm({ id_jenis: daftarJenis[0] ? String(daftarJenis[0].id_jenis) : "", berat: "" });
+    setShowAddForm(true);
+  }
+
+  async function submitAddItem() {
+    if (!addForm.id_jenis || !addForm.berat || Number(addForm.berat) <= 0) {
+      alert("Jenis sampah dan berat wajib diisi dengan benar.");
+      return;
+    }
+    try {
+      setSavingItem(true);
+      const response = await fetch(API.transaksiItemAdd(selectedId), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({
+          id_jenis: Number(addForm.id_jenis),
+          berat: Number(addForm.berat),
+        }),
+      });
+      await parseResponse(response);
+      setShowAddForm(false);
+      await refreshAfterChange();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSavingItem(false);
+    }
+  }
+
+  // =========================================================
+  // CATAT TRANSAKSI MANUAL (fitur lama, disederhanakan)
+  // =========================================================
+  const [manualNik, setManualNik] = useState("");
+  const [manualNasabah, setManualNasabah] = useState(null);
+  const [manualLoading, setManualLoading] = useState(false);
+  const [manualError, setManualError] = useState("");
+  const [manualIdJenis, setManualIdJenis] = useState("");
+  const [manualBerat, setManualBerat] = useState("");
+  const [manualSaving, setManualSaving] = useState(false);
+
+  async function cariNasabahManual() {
+    if (!manualNik.trim()) {
+      setManualError("NIK harus diisi.");
+      return;
+    }
+    setManualLoading(true);
+    setManualError("");
+    setManualNasabah(null);
+    try {
+      const response = await fetch(API.nasabahDetail(manualNik.trim()), {
+        headers: getAuthHeaders(),
+      });
+      const result = await parseResponse(response);
+      setManualNasabah(result?.data || result);
+      if (daftarJenis[0]) setManualIdJenis(String(daftarJenis[0].id_jenis));
+    } catch (err) {
+      setManualError(err.message || "Nasabah tidak ditemukan.");
+    } finally {
+      setManualLoading(false);
+    }
+  }
+
+  async function simpanTransaksiManual() {
+    if (!manualNasabah) {
+      setManualError("Cari nasabah berdasarkan NIK terlebih dahulu.");
+      return;
+    }
+    if (!manualIdJenis || !manualBerat || Number(manualBerat) <= 0) {
+      setManualError("Jenis sampah dan berat wajib diisi dengan benar.");
+      return;
+    }
+    try {
+      setManualSaving(true);
+      setManualError("");
       const response = await fetch(API.transaksiCreate, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders(),
-        },
-        body: JSON.stringify(transaksiData),
-      })
-
-      const data = await response.json().catch(() => ({}))
-
-      if (!response.ok) {
-        throw new Error(data.message || data.detail || 'Gagal menyimpan transaksi.')
-      }
-
-      const transaksi = data.data || data
-
-      setReceipt(transaksi)
-      setSaved(true)
-
-      // Refresh aktivitas setelah transaksi berhasil
-      handleGetAktivitas(nik.trim())
-    } catch (error) {
-      console.error(error)
-      setSaveError(error.message || 'Terjadi kesalahan saat menyimpan transaksi.')
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({
+          nik: manualNik.trim(),
+          detail: [{ id_jenis: Number(manualIdJenis), berat: Number(manualBerat) }],
+          keterangan: "Input manual dari dashboard admin",
+        }),
+      });
+      await parseResponse(response);
+      alert("Transaksi berhasil dicatat.");
+      setManualNik("");
+      setManualNasabah(null);
+      setManualBerat("");
+      await fetchTransaksiList();
+    } catch (err) {
+      setManualError(err.message);
     } finally {
-      setSaving(false)
+      setManualSaving(false);
     }
   }
-
-
-  // ======================================================
-  // CETAK STRUK
-  // ======================================================
-
-  const handleCetakStruk = () => {
-    window.print()
-  }
-
-
-  // ======================================================
-  // RENDER
-  // ======================================================
 
   return (
-    <div className="mx-auto max-w-[1120px]">
+    <div className="mx-auto w-full max-w-[1180px]">
+      <PageHeader title={`Halo, ${adminNama}!`} />
 
-      <PageHeader title="Transaksi Nasabah" />
+      {listError && (
+        <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          {listError}
+        </div>
+      )}
 
+      {/* RINGKASAN */}
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <SummaryCard icon={PackageCheck} label="Total Transaksi" value={transaksiList.length} />
+        <SummaryCard
+          icon={AlertTriangle}
+          label="Perlu Direview"
+          value={totalFlagged}
+          tone="amber"
+        />
+        <SummaryCard icon={Scale} label="Total Nilai" value={formatRupiah(totalNilaiSemua)} />
+      </div>
 
-      {/* ==================================================
-          INPUT TRANSAKSI
-      ================================================== */}
-
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-
-        {/* HEADER */}
-
-        <div className="mb-5 flex items-center gap-2">
-
-          <ScanLine
-            size={20}
-            className="text-emerald-700"
-          />
-
-          <h2 className="font-['Poppins'] text-lg font-bold text-emerald-900">
-            Input Transaksi Nasabah
+      {/* DAFTAR TRANSAKSI MASUK */}
+      <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-5">
+          <h2 className="font-['Poppins'] text-lg font-bold text-slate-800">
+            Transaksi Masuk
           </h2>
-
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
+              <input
+                type="checkbox"
+                checked={onlyFlagged}
+                onChange={(e) => setOnlyFlagged(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              Hanya yang perlu direview
+            </label>
+            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <Search size={15} className="shrink-0 text-slate-400" />
+              <input
+                type="text"
+                value={searchNik}
+                onChange={(e) => setSearchNik(e.target.value)}
+                placeholder="Cari NIK/nama..."
+                className="min-w-0 bg-transparent text-sm outline-none"
+              />
+            </div>
+          </div>
         </div>
 
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[800px] text-left text-sm">
+            <thead className="bg-slate-100 text-xs font-bold uppercase text-slate-500">
+              <tr>
+                <th className="px-5 py-4">Nasabah</th>
+                <th className="px-5 py-4">Tanggal</th>
+                <th className="px-5 py-4">Berat</th>
+                <th className="px-5 py-4">Nilai</th>
+                <th className="px-5 py-4">Status</th>
+                <th className="px-5 py-4">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loadingList && (
+                <tr>
+                  <td colSpan="6" className="px-5 py-10 text-center text-slate-400">
+                    Memuat transaksi...
+                  </td>
+                </tr>
+              )}
+              {!loadingList &&
+                filteredList.map((t) => (
+                  <tr key={t.id_transaksi} className="border-t border-slate-100">
+                    <td className="px-5 py-4">
+                      <p className="font-semibold text-slate-800">
+                        {t.nama_nasabah || "-"}
+                      </p>
+                      <p className="font-mono text-xs text-slate-400">{t.nik}</p>
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">
+                      {formatTanggal(t.tanggal_transaksi)}
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">{formatBerat(t.total_berat)}</td>
+                    <td className="px-5 py-4 font-bold text-emerald-700">
+                      {formatRupiah(t.total_nilai)}
+                    </td>
+                    <td className="px-5 py-4">
+                      {t.ada_flag ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">
+                          <AlertTriangle size={12} />
+                          Perlu Review
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
+                          Normal
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-5 py-4">
+                      <button
+                        onClick={() => openDetail(t.id_transaksi)}
+                        className="rounded-lg border border-slate-300 px-3.5 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
+                      >
+                        Lihat Detail
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              {!loadingList && filteredList.length === 0 && (
+                <tr>
+                  <td colSpan="6" className="px-5 py-10 text-center text-slate-400">
+                    Belum ada transaksi.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-        {/* SEARCH NIK */}
+      {/* CATAT TRANSAKSI MANUAL */}
+      <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="mb-4 font-['Poppins'] text-lg font-bold text-slate-800">
+          Catat Transaksi Manual
+        </h2>
 
-        <div className="mb-6 flex gap-3">
-
-          <div className="relative flex-1">
-
-            <input
-              type="text"
-              value={nik}
-              onChange={(e) => setNik(e.target.value)}
-              placeholder="Masukkan NIK Nasabah (Contoh: 3178902345981765)"
-              className="w-full rounded-lg border border-slate-200 px-4 py-3 pr-12 outline-none focus:border-emerald-500"
-            />
-
-            <Search
-              size={18}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
-            />
-
-          </div>
-
-
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto]">
+          <input
+            type="text"
+            value={manualNik}
+            onChange={(e) => setManualNik(e.target.value)}
+            placeholder="Masukkan NIK nasabah..."
+            className="w-full min-w-0 rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:border-emerald-500"
+          />
           <button
-            onClick={handleCariNasabah}
-            disabled={loadingNasabah}
-            className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-6 py-3 font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={cariNasabahManual}
+            disabled={manualLoading}
+            className="flex items-center justify-center gap-2 rounded-lg bg-slate-800 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-900 disabled:opacity-60"
           >
-
-            {loadingNasabah ? (
-              <>
-                <Loader2
-                  size={17}
-                  className="animate-spin"
-                />
-
-                Mencari...
-              </>
-            ) : (
-              <>
-                <Search size={17} />
-
-                Cari Nasabah
-              </>
-            )}
-
+            {manualLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+            Cari
           </button>
-
         </div>
 
+        {manualError && <p className="mt-3 text-sm text-red-600">{manualError}</p>}
 
-        {/* ERROR NASABAH */}
-
-        {nasabahError && (
-          <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-            {nasabahError}
-          </div>
-        )}
-
-
-        {/* DATA NASABAH */}
-
-        {nasabah && (
-          <div className="mb-6 flex items-center gap-4 rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-emerald-600">
-
-              <UserRound size={22} />
-
+        {manualNasabah && (
+          <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
+              <UserRound size={16} />
+              {manualNasabah.nama_nasabah || manualNasabah.nama}
             </div>
 
-
-            <div>
-
-              <p className="text-xs text-slate-500">
-                Nasabah ditemukan
-              </p>
-
-              <h3 className="font-['Poppins'] font-bold text-emerald-900">
-                {nasabah.nama || nasabah.nama_nasabah}
-              </h3>
-
-              <p className="text-sm text-slate-500">
-                NIK: {nasabah.nik || nik}
-              </p>
-
-            </div>
-
-          </div>
-        )}
-
-
-        {/* ==================================================
-            TRANSACTION FORM
-        ================================================== */}
-
-        <div className="grid grid-cols-2 gap-6">
-
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-
-            <div className="mb-3 flex items-center gap-2">
-
-              <PackageCheck
-                size={18}
-                className="text-emerald-700"
-              />
-
-              <h3 className="font-semibold text-slate-700">
-                Jenis Sampah Dipilih
-              </h3>
-
-            </div>
-
-
-            <div className="flex h-[202px] flex-col items-center justify-center rounded-lg bg-[#2d3748] text-center text-white">
-
-              <ScanLine
-                size={40}
-                className="mb-3"
-              />
-
-              <p className="text-sm text-slate-300">
-                Jenis Sampah
-              </p>
-
-              <p className="mt-1 text-xl font-bold">
-                {namaJenisTerpilih || '-'}
-              </p>
-
-            </div>
-
-          </div>
-
-
-          {/* DATA SAMPAH */}
-
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-
-            <div className="mb-4 flex items-center gap-2">
-
-              <Scale
-                size={18}
-                className="text-emerald-700"
-              />
-
-              <h3 className="font-semibold text-slate-700">
-                Data Timbangan
-              </h3>
-
-            </div>
-
-
-            {/* JENIS SAMPAH */}
-
-            <label className="mb-1 block text-sm font-semibold text-slate-600">
-              Jenis Sampah
-            </label>
-
-            <select
-              value={idJenis}
-              onChange={(e) => setIdJenis(e.target.value)}
-              disabled={loadingJenis || daftarJenis.length === 0}
-              className="mb-4 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 outline-none focus:border-emerald-500 disabled:opacity-60"
-            >
-              {loadingJenis && (
-                <option>Memuat jenis sampah...</option>
-              )}
-
-              {!loadingJenis && daftarJenis.length === 0 && (
-                <option>Belum ada data jenis sampah</option>
-              )}
-
-              {daftarJenis.map((j) => {
-                const id = j.id_jenis ?? j.id
-                const nama = j.nama_jenis ?? j.nama
-
-                return (
-                  <option key={id} value={id}>
-                    {nama}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <select
+                value={manualIdJenis}
+                onChange={(e) => setManualIdJenis(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
+              >
+                {daftarJenis.map((j) => (
+                  <option key={j.id_jenis} value={j.id_jenis}>
+                    {j.nama_jenis}
                   </option>
-                )
-              })}
-            </select>
-
-
-            {/* HARGA */}
-
-            <div className="mb-4 rounded-lg bg-white p-3">
-
-              <p className="text-xs text-slate-500">
-                Harga Saat Ini
-              </p>
-
-              <p className="font-bold text-emerald-600">
-                {formatRupiah(hargaPerKg)} / kg
-              </p>
-
-            </div>
-
-
-            {/* BERAT */}
-
-            <label className="mb-1 block text-sm font-semibold text-slate-600">
-              Berat Sampah
-            </label>
-
-            <div className="relative">
-
+                ))}
+              </select>
               <input
                 type="number"
                 min="0"
                 step="0.1"
-                value={berat}
-                onChange={(e) => setBerat(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-12 outline-none focus:border-emerald-500"
+                value={manualBerat}
+                onChange={(e) => setManualBerat(e.target.value)}
+                placeholder="Berat (kg)"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
               />
-
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-400">
-                kg
-              </span>
-
+              <button
+                onClick={simpanTransaksiManual}
+                disabled={manualSaving}
+                className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+              >
+                <Save size={16} />
+                {manualSaving ? "Menyimpan..." : "Simpan"}
+              </button>
             </div>
-
           </div>
+        )}
+      </section>
 
-        </div>
+      {/* MODAL DETAIL TRANSAKSI */}
+      <Modal
+        open={selectedId !== null}
+        onClose={closeDetail}
+        title={`Detail Transaksi #${selectedId ?? ""}`}
+      >
+        {loadingDetail && (
+          <div className="py-10 text-center text-sm text-slate-400">Memuat detail...</div>
+        )}
 
-
-        {/* ==================================================
-            TOTAL
-        ================================================== */}
-
-        <div className="mt-6 flex items-center justify-between rounded-lg border border-emerald-600 bg-emerald-50 px-5 py-4">
-
-          <div>
-
-            <p className="text-sm text-slate-500">
-              Total Diterima
-            </p>
-
-            <p className="font-['Poppins'] text-2xl font-bold text-emerald-700">
-              {formatRupiah(total)}
-            </p>
-
-          </div>
-
-          <div className="text-right">
-
-            <p className="text-xs text-slate-500">
-              {namaJenisTerpilih || '-'}
-            </p>
-
-            <p className="text-sm font-semibold text-slate-700">
-              {berat || 0} kg × {formatRupiah(hargaPerKg)}
-            </p>
-
-          </div>
-
-        </div>
-
-
-        {/* ERROR SAVE */}
-
-        {saveError && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-            {saveError}
+        {detailError && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+            {detailError}
           </div>
         )}
 
+        {!loadingDetail && detailData && (
+          <div className="space-y-5">
+            {/* INFO NASABAH */}
+            <div className="rounded-xl bg-slate-50 p-4">
+              <p className="font-['Poppins'] text-base font-bold text-slate-800">
+                {detailData.nama_nasabah || "-"}
+              </p>
+              <p className="font-mono text-xs text-slate-400">NIK: {detailData.nik}</p>
+              <p className="mt-1 text-xs text-slate-400">
+                {formatTanggal(detailData.tanggal_transaksi)}
+              </p>
+            </div>
 
-        {/* ==================================================
-            BUTTON
-        ================================================== */}
+            {/* LIST ITEM SAMPAH */}
+            <div className="space-y-3">
+              {detailData.details.map((item) => (
+                <div
+                  key={item.id_detail}
+                  className={`rounded-xl border p-4 ${
+                    item.is_flagged
+                      ? "border-amber-300 bg-amber-50"
+                      : "border-slate-200 bg-white"
+                  }`}
+                >
+                  {editingDetailId === item.id_detail ? (
+                    // ===================== MODE EDIT =====================
+                    <div className="space-y-3">
+                      <div className="flex gap-4">
+                        <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100">
+                          {item.foto_url ? (
+                            <img
+                              src={getFileUrl(item.foto_url)}
+                              alt="Foto sampah"
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <ImageOff size={22} className="text-slate-300" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1 space-y-2">
+                          {item.confidence !== null && item.confidence !== undefined && (
+                            <p className="text-xs text-slate-500">
+                              Confidence ML:{" "}
+                              <span
+                                className={`font-bold ${
+                                  Number(item.confidence) < CONFIDENCE_THRESHOLD
+                                    ? "text-amber-600"
+                                    : "text-emerald-600"
+                                }`}
+                              >
+                                {Number(item.confidence).toFixed(1)}%
+                              </span>
+                              {item.jenis_terdeteksi && (
+                                <span className="text-slate-400">
+                                  {" "}
+                                  (terdeteksi: {item.jenis_terdeteksi})
+                                </span>
+                              )}
+                            </p>
+                          )}
+                          <select
+                            value={editForm.id_jenis}
+                            onChange={(e) =>
+                              setEditForm((f) => ({ ...f, id_jenis: e.target.value }))
+                            }
+                            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                          >
+                            {daftarJenis.map((j) => (
+                              <option key={j.id_jenis} value={j.id_jenis}>
+                                {j.nama_jenis}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            value={editForm.berat}
+                            onChange={(e) =>
+                              setEditForm((f) => ({ ...f, berat: e.target.value }))
+                            }
+                            placeholder="Berat (kg)"
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => setEditingDetailId(null)}
+                          disabled={savingItem}
+                          className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                        >
+                          <X size={13} />
+                          Batal
+                        </button>
+                        <button
+                          onClick={saveEditItem}
+                          disabled={savingItem}
+                          className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
+                        >
+                          <Save size={13} />
+                          {savingItem ? "Menyimpan..." : "Simpan"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    // ===================== MODE TAMPIL =====================
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-semibold text-slate-800">
+                            {item.nama_jenis || item.jenis_terdeteksi || "Tidak diketahui"}
+                          </p>
+                          {item.is_flagged && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                              <AlertTriangle size={10} />
+                              Confidence {Number(item.confidence).toFixed(1)}%
+                            </span>
+                          )}
+                          {item.ditambahkan_manual && (
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
+                              Ditambah manual
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {formatBerat(item.berat)} · {formatRupiah(item.subtotal)}
+                        </p>
+                        {item.dikoreksi_oleh && (
+                          <p className="mt-1 text-[11px] text-slate-400">
+                            Dikoreksi oleh {item.dikoreksi_oleh} · {formatTanggal(item.dikoreksi_at)}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 gap-2">
+                        <button
+                          onClick={() => startEditItem(item)}
+                          className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          title="Edit"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          onClick={() => deleteItem(item)}
+                          className="flex h-8 w-8 items-center justify-center rounded-md bg-red-50 text-red-500 hover:bg-red-100"
+                          title="Hapus"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
 
-        <div className="mt-6 flex justify-end gap-3">
-
-          <button
-            onClick={handleCetakStruk}
-            disabled={!receipt}
-            className="flex items-center gap-2 rounded-lg border border-slate-200 px-5 py-3 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-
-            <Printer size={18} />
-
-            Cetak Struk
-
-          </button>
-
-
-          <button
-            onClick={handleSimpanTransaksi}
-            disabled={saving || !nasabah}
-            className="flex items-center gap-2 rounded-lg bg-emerald-600 px-6 py-3 font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-
-            {saving ? (
-              <>
-                <Loader2
-                  size={18}
-                  className="animate-spin"
-                />
-
-                Menyimpan...
-              </>
+            {/* TAMBAH ITEM BARU */}
+            {showAddForm ? (
+              <div className="rounded-xl border border-dashed border-slate-300 p-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <select
+                    value={addForm.id_jenis}
+                    onChange={(e) => setAddForm((f) => ({ ...f, id_jenis: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                  >
+                    {daftarJenis.map((j) => (
+                      <option key={j.id_jenis} value={j.id_jenis}>
+                        {j.nama_jenis}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={addForm.berat}
+                    onChange={(e) => setAddForm((f) => ({ ...f, berat: e.target.value }))}
+                    placeholder="Berat (kg)"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowAddForm(false)}
+                      disabled={savingItem}
+                      className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      onClick={submitAddItem}
+                      disabled={savingItem}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
+                    >
+                      <Save size={13} />
+                      Tambah
+                    </button>
+                  </div>
+                </div>
+              </div>
             ) : (
-              <>
-                <Save size={18} />
-
-                Simpan Transaksi
-              </>
+              <button
+                onClick={openAddForm}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 py-3 text-sm font-bold text-slate-500 transition hover:border-emerald-400 hover:text-emerald-600"
+              >
+                <Plus size={16} />
+                Tambah Sampah
+              </button>
             )}
 
-          </button>
-
-        </div>
-
-      </div>
-
-
-      {/* ==================================================
-          STRUK
-      ================================================== */}
-
-      {receipt && (
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-
-          <div className="flex items-center justify-between border-b-2 border-dashed border-slate-200 pb-4">
-
-            <div>
-
-              <h2 className="font-['Poppins'] text-base font-bold text-emerald-900">
-                EcoBank Struk
-              </h2>
-
-              <p className="text-xs text-slate-500">
-                {receipt.tanggal || 'Tanggal transaksi'}
-                {receipt.waktu && ` | ${receipt.waktu}`}
-              </p>
-
+            {/* TOTAL */}
+            <div className="flex items-center justify-between rounded-xl bg-emerald-50 p-4">
+              <div>
+                <p className="text-xs font-bold text-emerald-700">Total Berat</p>
+                <p className="font-['Poppins'] text-lg font-bold text-emerald-900">
+                  {formatBerat(detailData.total_berat)}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-bold text-emerald-700">Total Nilai</p>
+                <p className="font-['Poppins'] text-lg font-bold text-emerald-900">
+                  {formatRupiah(detailData.total_nilai)}
+                </p>
+              </div>
             </div>
-
-
-            <div className="text-right">
-
-              <p className="text-xs text-slate-500">
-                ID Transaksi
-              </p>
-
-              <p className="text-sm font-bold text-slate-800">
-                {receipt.id_transaksi ||
-                  receipt.transaksi_id ||
-                  receipt.id ||
-                  '-'}
-              </p>
-
-            </div>
-
           </div>
-
-
-          {/* DATA NASABAH */}
-
-          <div className="my-4 flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
-
-            <div>
-
-              <p className="text-xs text-slate-500">
-                NIK Nasabah
-              </p>
-
-              <p className="text-sm font-bold text-slate-800">
-                {receipt.nik || nik}
-              </p>
-
-            </div>
-
-
-            <div className="text-right">
-
-              <p className="text-xs text-slate-500">
-                Nama Nasabah
-              </p>
-
-              <p className="text-sm font-bold text-slate-800">
-                {receipt.nama_nasabah ||
-                  receipt.nama ||
-                  nasabah?.nama ||
-                  '-'}
-              </p>
-
-            </div>
-
-          </div>
-
-
-          {/* DETAIL */}
-
-          <div className="space-y-3">
-
-            <div className="flex items-center justify-between text-sm">
-
-              <span className="text-slate-700">
-                {namaJenisTerpilih}
-                {' '}
-                ({berat} kg)
-              </span>
-
-              <span className="font-semibold text-slate-900">
-                {formatRupiah(receipt.total || total)}
-              </span>
-
-            </div>
-
-          </div>
-
-
-          {/* TOTAL */}
-
-          <div className="mt-4 flex items-center justify-between rounded-lg border border-emerald-600 bg-emerald-50 px-4 py-3">
-
-            <span className="font-['Poppins'] text-sm font-bold text-emerald-900">
-              Total Diterima
-            </span>
-
-            <span className="font-['Poppins'] text-lg font-bold text-emerald-600">
-              {formatRupiah(receipt.total || total)}
-            </span>
-
-          </div>
-
-        </div>
-      )}
-
-
-      {/* ==================================================
-          AKTIVITAS TERAKHIR
-      ================================================== */}
-
-      <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-
-        <div className="mb-5 flex items-center justify-between">
-
-          <h2 className="font-['Poppins'] text-lg font-bold text-emerald-900">
-            Aktivitas Terakhir
-          </h2>
-
-          {loadingAktivitas && (
-            <Loader2
-              size={18}
-              className="animate-spin text-emerald-600"
-            />
-          )}
-
-        </div>
-
-
-        {aktivitas.length === 0 ? (
-
-          <div className="py-8 text-center text-sm text-slate-400">
-            {nasabah
-              ? 'Belum ada aktivitas transaksi untuk nasabah ini.'
-              : 'Cari nasabah terlebih dahulu untuk melihat aktivitas.'}
-          </div>
-
-        ) : (
-
-          <div className="overflow-x-auto">
-
-            <table className="w-full text-sm">
-
-              <thead>
-
-                <tr className="border-b border-slate-200 text-left">
-
-                  <th className="px-4 py-3 font-bold text-slate-500">
-                    Tanggal
-                  </th>
-
-                  <th className="px-4 py-3 font-bold text-slate-500">
-                    ID Transaksi
-                  </th>
-
-                  <th className="px-4 py-3 font-bold text-slate-500">
-                    NIK
-                  </th>
-
-                  <th className="px-4 py-3 font-bold text-slate-500">
-                    Sampah
-                  </th>
-
-                  <th className="px-4 py-3 font-bold text-slate-500">
-                    Berat
-                  </th>
-
-                  <th className="px-4 py-3 text-right font-bold text-slate-500">
-                    Nominal
-                  </th>
-
-                </tr>
-
-              </thead>
-
-
-              <tbody>
-
-                {aktivitas.map((item, index) => (
-
-                  <tr
-                    key={item.id_transaksi || item.id || index}
-                    className="border-b border-slate-100"
-                  >
-
-                    <td className="px-4 py-3">
-                      {item.tanggal || '-'}
-                    </td>
-
-                    <td className="px-4 py-3 font-semibold">
-                      {item.id_transaksi ||
-                        item.transaksi_id ||
-                        item.id ||
-                        '-'}
-                    </td>
-
-                    <td className="px-4 py-3">
-                      {item.nik || nik}
-                    </td>
-
-                    <td className="px-4 py-3">
-                      {item.jenis_sampah || '-'}
-                    </td>
-
-                    <td className="px-4 py-3">
-                      {item.berat ? `${item.berat} kg` : '-'}
-                    </td>
-
-                    <td className="px-4 py-3 text-right font-bold">
-                      {formatRupiah(item.total || item.nominal || 0)}
-                    </td>
-
-                  </tr>
-
-                ))}
-
-              </tbody>
-
-            </table>
-
-          </div>
-
         )}
-
-      </div>
-
+      </Modal>
     </div>
-  )
+  );
 }

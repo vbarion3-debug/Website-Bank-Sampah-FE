@@ -91,6 +91,7 @@ export default function Login() {
         setAdminToken(token);
         localStorage.setItem("admin_role", result?.role || role);
         localStorage.setItem("admin_username", result?.username || username);
+        localStorage.setItem("admin_nama", result?.nama_admin || "");
       }
       navigate("/", { replace: true });
     } catch (err) {
