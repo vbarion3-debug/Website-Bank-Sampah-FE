@@ -40,6 +40,11 @@ const databaseItems = [
     label: "Database Yayasan",
     icon: Building2,
   },
+  { 
+    to: "/database-sampah", 
+    label: "Database Sampah", 
+    icon: Recycle 
+  },
 ];
 
 export default function Sidebar() {

@@ -10,6 +10,7 @@ import FormYayasan from './pages/FormYayasan'
 import DatabaseYayasan from './pages/DatabaseYayasan'
 import LaporanPengeluaran from './pages/LaporanPengeluaran'
 import LaporanPemasukan from './pages/LaporanPemasukan'
+import DatabaseSampah from './pages/DatabaseSampah'
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
         <Route path="/laporan-pengeluaran" element={<LaporanPengeluaran />}/>
         <Route path="/laporan-pemasukan" element={<LaporanPemasukan />}/>
+        <Route path="/database-sampah" element={<DatabaseSampah />} />
       </Route>
     </Routes>
   )
