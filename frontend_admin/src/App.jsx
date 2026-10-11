@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import AdminLayout from './layouts/AdminLayout'
 import ProtectedRoute from './components/ProtectedRoute'
+import SuperAdminRoute from './components/SuperAdminRoute'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import DatabaseNasabah from './pages/DatabaseNasabah'
@@ -11,6 +12,7 @@ import DatabaseYayasan from './pages/DatabaseYayasan'
 import LaporanPengeluaran from './pages/LaporanPengeluaran'
 import LaporanPemasukan from './pages/LaporanPemasukan'
 import DatabaseSampah from './pages/DatabaseSampah'
+import DatabaseAdmin from './pages/DatabaseAdmin'
 
 export default function App() {
   return (
@@ -34,6 +36,14 @@ export default function App() {
         <Route path="/laporan-pengeluaran" element={<LaporanPengeluaran />}/>
         <Route path="/laporan-pemasukan" element={<LaporanPemasukan />}/>
         <Route path="/database-sampah" element={<DatabaseSampah />} />
+        <Route
+          path="/database-admin"
+          element={
+            <SuperAdminRoute>
+              <DatabaseAdmin />
+            </SuperAdminRoute>
+          }
+        />
       </Route>
     </Routes>
   )

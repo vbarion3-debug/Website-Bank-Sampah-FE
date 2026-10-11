@@ -71,6 +71,15 @@ export const API = {
   adminVerifyOtp: `${API_BASE_URL}/auth/admin/verify-otp`,
   adminLogout: `${API_BASE_URL}/auth/admin/logout`,
 
+    // KELOLA AKUN ADMIN (khusus super admin)
+  kelolaAdminList: `${API_BASE_URL}/admin/list-admin`,
+  kelolaAdminSearch: (search) =>
+    `${API_BASE_URL}/admin/list-admin?search=${encodeURIComponent(search)}`,
+  kelolaAdminCreate: `${API_BASE_URL}/admin/create-admin`,
+  kelolaAdminEdit: (id) => `${API_BASE_URL}/admin/edit-admin/${id}`,
+  kelolaAdminStatus: (id) => `${API_BASE_URL}/admin/status-admin/${id}`,
+  kelolaAdminDelete: (id) => `${API_BASE_URL}/admin/delete-admin/${id}`,
+
   superAdminLogin: `${API_BASE_URL}/auth/super-admin/login`,
   superAdminVerifyOtp: `${API_BASE_URL}/auth/super-admin/verify-otp`,
   superAdminLogout: `${API_BASE_URL}/auth/super-admin/logout`,
