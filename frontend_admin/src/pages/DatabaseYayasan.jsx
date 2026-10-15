@@ -63,7 +63,7 @@ const rupiah = (value) =>
 const formatDate = (value) => {
   if (!value) return '-'
   const str = String(value)
-  const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(str) ? str : `${str}Z`)
+  const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(str) ? str : `${str}+07:00`)
   if (Number.isNaN(d.getTime())) return '-'
   return d.toLocaleString('id-ID', {
     day: '2-digit',

@@ -42,11 +42,12 @@ export const chatWsUrl = (token) => {
 // HELPER DATA (pengumuman & harga sampah)
 // ======================================================
 
-// Backend menyimpan waktu UTC tanpa penanda zona -> tambahkan "Z"
+// Backend menyimpan waktu WIB (UTC+7) tanpa penanda zona -> tambahkan "+07:00"
+// supaya tampil benar di browser mana pun, bukan hanya yang berzona WIB.
 export function parseDate(value) {
   if (!value) return new Date(0)
   const str = String(value)
-  const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(str) ? str : `${str}Z`)
+  const d = new Date(/(Z|[+-]\d\d:?\d\d)$/i.test(str) ? str : `${str}+07:00`)
   return Number.isNaN(d.getTime()) ? new Date(0) : d
 }
 
