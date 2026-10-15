@@ -9,6 +9,10 @@ export const API = {
   // Endpoint khusus nasabah (bisa diakses token nasabah)
   pengumuman: `${API_BASE_URL}/pengumuman/nasabah/list`,
   jenisSampah: `${API_BASE_URL}/jenis-sampah/nasabah/list`,
+  transaksiHistory: `${API_BASE_URL}/transaksi/history`,
+  penarikanBase: `${API_BASE_URL}/penarikan`,
+  penarikan: `${API_BASE_URL}/penarikan/ajukan`,
+  penarikanHistory: `${API_BASE_URL}/penarikan/history`,
 }
 
 const NASABAH_TOKEN_KEY = 'nasabah_session_token'
