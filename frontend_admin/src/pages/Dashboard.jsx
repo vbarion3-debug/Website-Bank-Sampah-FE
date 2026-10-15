@@ -23,6 +23,7 @@ import {
   getAdminUsername,
   getFileUrl,
 } from "../api";
+import { parseWaktu } from "../utils/waktu"
 
 const CONFIDENCE_THRESHOLD = 80;
 
@@ -40,7 +41,7 @@ function formatBerat(value) {
 
 function formatTanggal(iso) {
   if (!iso) return "-";
-  return new Date(iso).toLocaleString("id-ID", {
+  return parseWaktu(iso).toLocaleString("id-ID", {
     day: "2-digit",
     month: "short",
     year: "numeric",

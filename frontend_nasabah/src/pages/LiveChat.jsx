@@ -3,6 +3,7 @@ import { Send } from "lucide-react";
 import PhoneShell from "../components/PhoneShell";
 import BottomNav from "../components/BottomNav";
 import { API, getAccessToken, getAuthHeaders, chatWsUrl } from "../api";
+import { parseWaktu } from "../utils/waktu"
 
 export default function LiveChat({ onNavigate }) {
   const [messages, setMessages] = useState([]);
@@ -162,7 +163,7 @@ export default function LiveChat({ onNavigate }) {
                   >
                     {msg.sender_type === "admin" ? "Admin · " : ""}
                     {msg.created_at
-                      ? new Date(msg.created_at).toLocaleTimeString("id-ID", {
+                      ? parseWaktu(msg.created_at).toLocaleTimeString("id-ID", {
                           hour: "2-digit",
                           minute: "2-digit",
                         })

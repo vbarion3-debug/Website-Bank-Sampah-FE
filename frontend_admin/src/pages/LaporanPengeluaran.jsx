@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import { API, getAuthHeaders } from "../api";
+import { bulanIniWIB } from "../utils/waktu"
 
 export default function LaporanPengeluaran() {
   const [loading, setLoading] = useState(true);
@@ -256,7 +257,7 @@ export default function LaporanPengeluaran() {
     );
 
   // Total pengeluaran
-  const currentMonth = new Date().toISOString().slice(0, 7);
+  const currentMonth = bulanIniWIB();
 
   const totalPengeluaran =
     filteredRows

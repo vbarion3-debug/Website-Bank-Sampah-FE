@@ -16,6 +16,7 @@ import {
   chatHistory,
   chatWsUrl,
 } from "../api";
+import { parseWaktu } from "../utils/waktu"
 
 export default function LiveChat() {
   const myUsername = getAdminUsername();
@@ -409,7 +410,7 @@ export default function LiveChat() {
                             ? `${msg.sender_id} · `
                             : ""}
                           {msg.created_at
-                            ? new Date(msg.created_at).toLocaleTimeString("id-ID", {
+                            ? parseWaktu(msg.created_at).toLocaleTimeString("id-ID", {
                                 hour: "2-digit",
                                 minute: "2-digit",
                               })

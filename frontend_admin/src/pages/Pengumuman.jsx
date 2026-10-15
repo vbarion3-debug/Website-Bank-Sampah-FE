@@ -3,6 +3,7 @@ import { Plus, Send, Save, Trash2, Pencil, Bold, Italic, List, X } from "lucide-
 import PageHeader from "../components/PageHeader";
 import StatusBadge from "../components/StatusBadge";
 import { API, getAuthHeaders, parseResponse } from "../api";
+import { parseWaktu } from "../utils/waktu"
 
 // Backend: status = "draft" | "terbit" | "arsip"
 const STATUS_LABEL = {
@@ -13,7 +14,7 @@ const STATUS_LABEL = {
 
 function formatTanggal(iso) {
   if (!iso) return "-";
-  return new Date(iso).toLocaleDateString("id-ID", {
+  return parseWaktu(iso).toLocaleDateString("id-ID", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -22,7 +23,7 @@ function formatTanggal(iso) {
 
 function formatJam(iso) {
   if (!iso) return "-";
-  return new Date(iso).toLocaleTimeString("id-ID", {
+  return parseWaktu(iso).toLocaleTimeString("id-ID", {
     hour: "2-digit",
     minute: "2-digit",
   });
