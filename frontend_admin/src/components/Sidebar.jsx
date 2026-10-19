@@ -11,11 +11,21 @@ import {
   ChevronDown,
   LogOut,
   ShieldCheck,
+  Wallet,
 } from "lucide-react";
 import { API, getAuthHeaders, clearAdminToken, parseResponse } from "../api";
 
 const items = [
-  { to: "/", label: "Transaksi Nasabah", icon: ReceiptText },
+  { 
+    to: "/",
+    label: "Transaksi Nasabah", 
+    icon: ReceiptText 
+  },
+  { 
+    to: "/penarikan", 
+    label: "Penarikan Saldo", 
+    icon: Wallet 
+  },
   {
     to: "/laporan-pengeluaran",
     label: "Laporan Pengeluaran",

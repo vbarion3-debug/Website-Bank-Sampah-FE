@@ -10,11 +10,10 @@ import {
   Save,
   X,
   ImageOff,
-  UserRound,
-  Loader2,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import Modal from "../components/Modal";
+import FormTransaksiManual from "../components/FormTransaksiManual";
 import {
   API,
   getAuthHeaders,
@@ -273,72 +272,6 @@ export default function Dashboard() {
     }
   }
 
-  // =========================================================
-  // CATAT TRANSAKSI MANUAL (fitur lama, disederhanakan)
-  // =========================================================
-  const [manualNik, setManualNik] = useState("");
-  const [manualNasabah, setManualNasabah] = useState(null);
-  const [manualLoading, setManualLoading] = useState(false);
-  const [manualError, setManualError] = useState("");
-  const [manualIdJenis, setManualIdJenis] = useState("");
-  const [manualBerat, setManualBerat] = useState("");
-  const [manualSaving, setManualSaving] = useState(false);
-
-  async function cariNasabahManual() {
-    if (!manualNik.trim()) {
-      setManualError("NIK harus diisi.");
-      return;
-    }
-    setManualLoading(true);
-    setManualError("");
-    setManualNasabah(null);
-    try {
-      const response = await fetch(API.nasabahDetail(manualNik.trim()), {
-        headers: getAuthHeaders(),
-      });
-      const result = await parseResponse(response);
-      setManualNasabah(result?.data || result);
-      if (daftarJenis[0]) setManualIdJenis(String(daftarJenis[0].id_jenis));
-    } catch (err) {
-      setManualError(err.message || "Nasabah tidak ditemukan.");
-    } finally {
-      setManualLoading(false);
-    }
-  }
-
-  async function simpanTransaksiManual() {
-    if (!manualNasabah) {
-      setManualError("Cari nasabah berdasarkan NIK terlebih dahulu.");
-      return;
-    }
-    if (!manualIdJenis || !manualBerat || Number(manualBerat) <= 0) {
-      setManualError("Jenis sampah dan berat wajib diisi dengan benar.");
-      return;
-    }
-    try {
-      setManualSaving(true);
-      setManualError("");
-      const response = await fetch(API.transaksiCreate, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify({
-          nik: manualNik.trim(),
-          detail: [{ id_jenis: Number(manualIdJenis), berat: Number(manualBerat) }],
-          keterangan: "Input manual dari dashboard admin",
-        }),
-      });
-      await parseResponse(response);
-      alert("Transaksi berhasil dicatat.");
-      setManualNik("");
-      setManualNasabah(null);
-      setManualBerat("");
-      await fetchTransaksiList();
-    } catch (err) {
-      setManualError(err.message);
-    } finally {
-      setManualSaving(false);
-    }
-  }
 
   return (
     <div className="mx-auto w-full max-w-[1180px]">
@@ -418,6 +351,14 @@ export default function Dashboard() {
                       <p className="font-semibold text-slate-800">
                         {t.nama_nasabah || "-"}
                       </p>
+                      {t.dibuat_manual && (
+                        <span
+                          title={t.dibuat_oleh ? `Dicatat manual oleh ${t.dibuat_oleh}` : "Dicatat manual"}
+                          className="mt-1 inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700"
+                        >
+                          Manual
+                        </span>
+                      )}
                       <p className="font-mono text-xs text-slate-400">{t.nik}</p>
                     </td>
                     <td className="px-5 py-4 text-slate-600">
@@ -461,72 +402,10 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* CATAT TRANSAKSI MANUAL */}
-      <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 font-['Poppins'] text-lg font-bold text-slate-800">
-          Catat Transaksi Manual
-        </h2>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto]">
-          <input
-            type="text"
-            value={manualNik}
-            onChange={(e) => setManualNik(e.target.value)}
-            placeholder="Masukkan NIK nasabah..."
-            className="w-full min-w-0 rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:border-emerald-500"
-          />
-          <button
-            onClick={cariNasabahManual}
-            disabled={manualLoading}
-            className="flex items-center justify-center gap-2 rounded-lg bg-slate-800 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-900 disabled:opacity-60"
-          >
-            {manualLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-            Cari
-          </button>
-        </div>
-
-        {manualError && <p className="mt-3 text-sm text-red-600">{manualError}</p>}
-
-        {manualNasabah && (
-          <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
-            <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
-              <UserRound size={16} />
-              {manualNasabah.nama_nasabah || manualNasabah.nama}
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <select
-                value={manualIdJenis}
-                onChange={(e) => setManualIdJenis(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
-              >
-                {daftarJenis.map((j) => (
-                  <option key={j.id_jenis} value={j.id_jenis}>
-                    {j.nama_jenis}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="number"
-                min="0"
-                step="0.1"
-                value={manualBerat}
-                onChange={(e) => setManualBerat(e.target.value)}
-                placeholder="Berat (kg)"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
-              />
-              <button
-                onClick={simpanTransaksiManual}
-                disabled={manualSaving}
-                className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-              >
-                <Save size={16} />
-                {manualSaving ? "Menyimpan..." : "Simpan"}
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
+      {/* CATAT TRANSAKSI MANUAL (foto wajib per item) */}
+      <div className="mb-6">
+        <FormTransaksiManual daftarJenis={daftarJenis} onSaved={fetchTransaksiList} />
+      </div>
 
       {/* MODAL DETAIL TRANSAKSI */}
       <Modal
@@ -555,6 +434,14 @@ export default function Dashboard() {
               <p className="mt-1 text-xs text-slate-400">
                 {formatTanggal(detailData.tanggal_transaksi)}
               </p>
+              {detailData.dibuat_manual && (
+                <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-700">
+                  Manual
+                  {detailData.dibuat_oleh && (
+                    <span className="font-medium">· dicatat oleh {detailData.dibuat_oleh}</span>
+                  )}
+                </p>
+              )}
             </div>
 
             {/* LIST ITEM SAMPAH */}
@@ -672,6 +559,20 @@ export default function Dashboard() {
                         <p className="mt-1 text-xs text-slate-500">
                           {formatBerat(item.berat)} · {formatRupiah(item.subtotal)}
                         </p>
+                        {item.foto_url && (
+                          <a
+                            href={getFileUrl(item.foto_url)}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Klik untuk membuka foto"
+                          >
+                            <img
+                              src={getFileUrl(item.foto_url)}
+                              alt="Foto sampah"
+                              className="mt-2 h-20 w-20 rounded-lg border border-slate-200 object-cover"
+                            />
+                          </a>
+                        )}
                         {item.dikoreksi_oleh && (
                           <p className="mt-1 text-[11px] text-slate-400">
                             Dikoreksi oleh {item.dikoreksi_oleh} · {formatTanggal(item.dikoreksi_at)}

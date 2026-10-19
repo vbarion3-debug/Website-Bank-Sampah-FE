@@ -38,6 +38,7 @@ export const API = {
   deleteJenisSampah: (id) => `${API_BASE_URL}/jenis-sampah/${id}`,
 
   transaksiCreate: `${API_BASE_URL}/transaksi/create`,
+  transaksiCreateManual: `${API_BASE_URL}/transaksi/create-manual`,
   transaksiHistory: `${API_BASE_URL}/transaksi/history-admin`,
   // Tambahan: Endpoint transaksi baru
   transaksiDetail: (id) => `${API_BASE_URL}/transaksi/${id}`,
@@ -87,6 +88,11 @@ export const API = {
   chatConversations: `${API_BASE_URL}/chat/conversations`,
   chatClaim: (nik) => `${API_BASE_URL}/chat/claim/${nik}`,
   chatRelease: (nik) => `${API_BASE_URL}/chat/release/${nik}`,
+
+  penarikanAdmin: `${API_BASE_URL}/admin/penarikan/`,
+  penarikanAdminBukti: (id) => `${API_BASE_URL}/admin/penarikan/${id}/bukti`,
+  penarikanAdminSelesai: (id) => `${API_BASE_URL}/admin/penarikan/${id}/selesai`,
+  penarikanAdminTolak: (id) => `${API_BASE_URL}/admin/penarikan/${id}/tolak`,
 }
 
 export async function parseResponse(response) {

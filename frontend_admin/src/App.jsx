@@ -13,6 +13,7 @@ import LaporanPengeluaran from './pages/LaporanPengeluaran'
 import LaporanPemasukan from './pages/LaporanPemasukan'
 import DatabaseSampah from './pages/DatabaseSampah'
 import DatabaseAdmin from './pages/DatabaseAdmin'
+import Penarikan from './pages/Penarikan'
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/live-chat" element={<LiveChat />} />
         <Route path="/database-yayasan" element={<DatabaseYayasan />} />
         <Route path="/database-yayasan/tambah" element={<FormYayasan />} />
+        <Route path="/penarikan" element={<Penarikan />} />
         <Route path="*" element={<Navigate to="/" replace />} />
         <Route path="/laporan-pengeluaran" element={<LaporanPengeluaran />}/>
         <Route path="/laporan-pemasukan" element={<LaporanPemasukan />}/>
