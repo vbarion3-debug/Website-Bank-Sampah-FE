@@ -12,30 +12,16 @@ import {
   LogOut,
   ShieldCheck,
   Wallet,
+  HeartHandshake,
 } from "lucide-react";
 import { API, getAuthHeaders, clearAdminToken, parseResponse } from "../api";
 
 const items = [
-  { 
-    to: "/",
-    label: "Transaksi Nasabah", 
-    icon: ReceiptText 
-  },
-  { 
-    to: "/penarikan", 
-    label: "Penarikan Saldo", 
-    icon: Wallet 
-  },
-  {
-    to: "/laporan-pengeluaran",
-    label: "Laporan Pengeluaran",
-    icon: ChartNoAxesCombined,
-  },
-  {
-    to: "/laporan-pemasukan",
-    label: "Laporan Pemasukan",
-    icon: ChartNoAxesCombined,
-  },
+  { to: "/", label: "Transaksi Nasabah", icon: ReceiptText },
+  { to: "/transaksi-yayasan", label: "Transaksi Yayasan", icon: HeartHandshake },
+  { to: "/penarikan", label: "Penarikan Saldo", icon: Wallet },
+  { to: "/laporan-pengeluaran", label: "Laporan Pengeluaran", icon: ChartNoAxesCombined },
+  { to: "/laporan-pemasukan", label: "Laporan Pemasukan", icon: ChartNoAxesCombined },
   { to: "/pengumuman", label: "Pengumuman", icon: Megaphone },
   { to: "/live-chat", label: "Live Chat", icon: MessageCircle },
 ];

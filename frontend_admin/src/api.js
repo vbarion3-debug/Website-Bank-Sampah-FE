@@ -72,7 +72,7 @@ export const API = {
   adminVerifyOtp: `${API_BASE_URL}/auth/admin/verify-otp`,
   adminLogout: `${API_BASE_URL}/auth/admin/logout`,
 
-    // KELOLA AKUN ADMIN (khusus super admin)
+  // ------------------KELOLA AKUN ADMIN (khusus super admin)------------------
   kelolaAdminList: `${API_BASE_URL}/admin/list-admin`,
   kelolaAdminSearch: (search) =>
     `${API_BASE_URL}/admin/list-admin?search=${encodeURIComponent(search)}`,
@@ -84,7 +84,9 @@ export const API = {
   superAdminLogin: `${API_BASE_URL}/auth/super-admin/login`,
   superAdminVerifyOtp: `${API_BASE_URL}/auth/super-admin/verify-otp`,
   superAdminLogout: `${API_BASE_URL}/auth/super-admin/logout`,
-  
+  // ---------------------------------------------------------------------------
+
+
   chatConversations: `${API_BASE_URL}/chat/conversations`,
   chatClaim: (nik) => `${API_BASE_URL}/chat/claim/${nik}`,
   chatRelease: (nik) => `${API_BASE_URL}/chat/release/${nik}`,
@@ -93,6 +95,13 @@ export const API = {
   penarikanAdminBukti: (id) => `${API_BASE_URL}/admin/penarikan/${id}/bukti`,
   penarikanAdminSelesai: (id) => `${API_BASE_URL}/admin/penarikan/${id}/selesai`,
   penarikanAdminTolak: (id) => `${API_BASE_URL}/admin/penarikan/${id}/tolak`,
+
+  transaksiJualMitraList: `${API_BASE_URL}/transaksi-jual-mitra/`,
+  transaksiJualMitraByMitra: (id) => `${API_BASE_URL}/transaksi-jual-mitra/mitra/${id}`,
+
+  transaksiJualMitraLaporan: `${API_BASE_URL}/transaksi-jual-mitra/laporan`,
+  transaksiJualMitraExport: `${API_BASE_URL}/transaksi-jual-mitra/laporan/export`,
+  transaksiJualMitraStok: `${API_BASE_URL}/transaksi-jual-mitra/stok`,
 }
 
 export async function parseResponse(response) {

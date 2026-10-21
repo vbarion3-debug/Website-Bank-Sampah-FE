@@ -14,6 +14,7 @@ import LaporanPemasukan from './pages/LaporanPemasukan'
 import DatabaseSampah from './pages/DatabaseSampah'
 import DatabaseAdmin from './pages/DatabaseAdmin'
 import Penarikan from './pages/Penarikan'
+import TransaksiYayasan from './pages/TransaksiYayasan'
 
 export default function App() {
   return (
@@ -46,6 +47,7 @@ export default function App() {
             </SuperAdminRoute>
           }
         />
+        <Route path="/transaksi-yayasan" element={<TransaksiYayasan />} />
       </Route>
     </Routes>
   )
