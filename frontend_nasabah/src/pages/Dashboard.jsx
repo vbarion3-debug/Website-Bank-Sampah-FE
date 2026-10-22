@@ -22,7 +22,7 @@ import {
   formatTanggal,
 } from "../api";
 import { useData } from "../useData";
-
+import { useNotifikasi } from "../notifikasi";
 function greeting() {
   const h = new Date().getHours();
   if (h < 11) return "Selamat pagi";
@@ -30,13 +30,10 @@ function greeting() {
   if (h < 18) return "Selamat sore";
   return "Selamat malam";
 }
-
 const rupiah = (n) => `Rp ${Number(n || 0).toLocaleString("id-ID")}`;
-
 function Skeleton({ className = "" }) {
   return <div className={`animate-pulse rounded-lg bg-slate-200/70 ${className}`} />;
 }
-
 function InlineError({ message, onRetry }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-600">
@@ -55,13 +52,21 @@ function InlineError({ message, onRetry }) {
     </div>
   );
 }
+// Setoran terbaru nasabah dari GET /transaksi/history (sudah diurutkan terbaru dulu oleh backend)
+async function fetchSetoranTerakhir() {
+  const response = await fetch(API.transaksiHistory, { headers: getAuthHeaders() });
+  const data = await parseResponse(response);
+  const list = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+  return list[0] || null;
+}
+const formatKg = (v) =>
+  `${Number(v || 0).toLocaleString("id-ID", { maximumFractionDigits: 2 })} kg`;
 
 export default function Dashboard({ onNavigate }) {
   // ---------- PROFIL ----------
   const [profile, setProfile] = useState(null);
   const [profileError, setProfileError] = useState("");
   const [hideSaldo, setHideSaldo] = useState(false);
-
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -77,23 +82,20 @@ export default function Dashboard({ onNavigate }) {
       cancelled = true;
     };
   }, []);
-
   // ---------- PENGUMUMAN & HARGA (dari database) ----------
   const announcements = useData(fetchActiveAnnouncements);
+  const setoran = useData(fetchSetoranTerakhir);
+  const { belumDibaca } = useNotifikasi();
   const harga = useData(fetchHargaSampah);
-
   const name = profile?.nama_nasabah || profile?.nama || "Nasabah";
   const saldo = profile?.saldo ?? profile?.balance ?? 0;
   const profileLoading = !profile && !profileError;
-
   const activeAnn = announcements.data || [];
   const latest = activeAnn[0];
   const priceList = harga.data || [];
-
   const nav = (id) => {
     if (id !== "dashboard") onNavigate(id);
   };
-
   return (
     <PhoneShell bottom={<BottomNav active="dashboard" onNavigate={nav} />}>
       <div className="min-h-[820px] bg-slate-50">
@@ -119,26 +121,29 @@ export default function Dashboard({ onNavigate }) {
               )}
             </div>
           </div>
-
           <button
             type="button"
-            onClick={() => onNavigate("pengumuman")}
-            aria-label="Pengumuman"
+            onClick={() => onNavigate("notifikasi")}
+            aria-label={
+              belumDibaca > 0
+                ? `Notifikasi, ${belumDibaca} belum dibaca`
+                : "Notifikasi"
+            }
             className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-50"
           >
             <Bell size={18} className="text-emerald-600" />
-            {activeAnn.length > 0 && (
-              <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-red-500 ring-2 ring-emerald-50" />
+            {belumDibaca > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white">
+                {belumDibaca > 9 ? "9+" : belumDibaca}
+              </span>
             )}
           </button>
         </header>
-
         <main className="space-y-6 px-6 py-5">
           {/* Saldo */}
           <section className="relative overflow-hidden rounded-2xl bg-gradient-to-bl from-emerald-900 to-emerald-600 p-5 text-white shadow-[0_10px_20px_rgba(5,150,105,.20)]">
             <div className="pointer-events-none absolute -right-8 -top-8 size-32 rounded-full bg-white/10" />
             <div className="pointer-events-none absolute -bottom-10 right-10 size-24 rounded-full bg-white/5" />
-
             <div className="relative flex items-center justify-between">
               <p className="text-xs font-semibold text-emerald-100">
                 Total Saldo Tabungan Sampah
@@ -152,7 +157,6 @@ export default function Dashboard({ onNavigate }) {
                 {hideSaldo ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-
             {profileLoading ? (
               <Skeleton className="mt-3 h-8 w-44 bg-white/20" />
             ) : (
@@ -160,7 +164,6 @@ export default function Dashboard({ onNavigate }) {
                 {hideSaldo ? "Rp ••••••" : rupiah(saldo)}
               </p>
             )}
-
             <div className="relative mt-5 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-xs text-emerald-100">
                 <WalletCards size={13} />
@@ -175,14 +178,12 @@ export default function Dashboard({ onNavigate }) {
                 <ArrowUpRight size={13} />
               </button>
             </div>
-
             {profileError && (
               <p className="relative mt-3 text-[11px] text-amber-200">
                 Data profil belum dapat dimuat: {profileError}
               </p>
             )}
           </section>
-
           {/* Pengumuman */}
           <section>
             <div className="mb-3 flex items-center justify-between">
@@ -195,7 +196,6 @@ export default function Dashboard({ onNavigate }) {
                 </span>
               )}
             </div>
-
             {announcements.loading && !announcements.data ? (
               <Skeleton className="h-24 w-full rounded-2xl" />
             ) : announcements.error && !announcements.data ? (
@@ -242,7 +242,6 @@ export default function Dashboard({ onNavigate }) {
               </button>
             )}
           </section>
-
           {/* Harga Sampah */}
           <section>
             <div className="mb-3 flex items-center justify-between">
@@ -258,7 +257,6 @@ export default function Dashboard({ onNavigate }) {
                 <ChevronRight size={14} />
               </button>
             </div>
-
             {harga.loading && !harga.data ? (
               <div className="flex gap-2 overflow-hidden">
                 {[0, 1, 2].map((i) => (
@@ -305,29 +303,63 @@ export default function Dashboard({ onNavigate }) {
               </div>
             )}
           </section>
-
-          {/* Setoran Terakhir (placeholder, belum ada endpoint) */}
+          {/* Setoran Terakhir (data nyata dari /transaksi/history) */}
           <section>
-            <div className="mb-3 flex items-center gap-2">
+            <div className="mb-3 flex items-center justify-between">
               <h2 className="font-poppins text-sm font-semibold text-slate-800">
                 Setoran Terakhir
               </h2>
-              <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">
-                Contoh
-              </span>
+              <button
+                type="button"
+                onClick={() => onNavigate("history")}
+                className="flex items-center text-xs font-bold text-emerald-600"
+              >
+                Lihat Semua
+                <ChevronRight size={14} />
+              </button>
             </div>
-            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4">
-              <div>
-                <p className="text-xs font-bold text-slate-800">Plastik PET & Kardus</p>
-                <p className="mt-1 text-xs text-slate-500">2 Juli 2026 • 14:46 WIB</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs font-bold text-emerald-600">+ Rp 13.750</p>
-                <span className="mt-1 inline-block rounded-sm bg-emerald-50 px-2 py-0.5 text-[10px] text-emerald-500">
-                  Berhasil
-                </span>
-              </div>
-            </div>
+            {setoran.loading && !setoran.data ? (
+              <Skeleton className="h-[72px] w-full rounded-xl" />
+            ) : setoran.error && !setoran.data ? (
+              <InlineError
+                message={`Setoran gagal dimuat: ${setoran.error}`}
+                onRetry={setoran.reload}
+              />
+            ) : !setoran.data ? (
+              <p className="rounded-xl border border-slate-200 bg-white py-6 text-center text-xs text-slate-400">
+                Belum ada setoran. Setoran sampahmu akan tampil di sini.
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onNavigate("history")}
+                className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-bold text-slate-800">
+                    {[
+                      ...new Set(
+                        (setoran.data.details || [])
+                          .map((d) => d.nama_jenis)
+                          .filter(Boolean)
+                      ),
+                    ].join(", ") || "Setoran Sampah"}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {formatTanggal(setoran.data.tanggal_transaksi)} &bull;{" "}
+                    {formatKg(setoran.data.total_berat)}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-xs font-bold text-emerald-600">
+                    + {rupiah(setoran.data.total_nilai)}
+                  </p>
+                  <span className="mt-1 inline-block rounded-sm bg-emerald-50 px-2 py-0.5 text-[10px] text-emerald-500">
+                    Berhasil
+                  </span>
+                </div>
+              </button>
+            )}
           </section>
         </main>
       </div>

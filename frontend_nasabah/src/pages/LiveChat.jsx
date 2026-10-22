@@ -3,30 +3,26 @@ import { Send } from "lucide-react";
 import PhoneShell from "../components/PhoneShell";
 import BottomNav from "../components/BottomNav";
 import { API, getAccessToken, getAuthHeaders, chatWsUrl } from "../api";
-import { parseWaktu } from "../utils/waktu"
-
+import { parseWaktu } from "../utils/waktu";
+import { useNotifikasi } from "../notifikasi";
 export default function LiveChat({ onNavigate }) {
   const [messages, setMessages] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(true);
   const [messageText, setMessageText] = useState("");
   const [wsStatus, setWsStatus] = useState("idle");
   const [error, setError] = useState("");
-
   const wsRef = useRef(null);
   const bottomRef = useRef(null);
-
+  // Sebelumnya hanya 3 tujuan yang diteruskan, jadi tombol "Transaksi" di navbar tidak berfungsi.
+  const { refresh: refreshNotif } = useNotifikasi();
   const nav = (id) => {
-    if (id === "dashboard") onNavigate("dashboard");
-    else if (id === "withdraw") onNavigate("withdraw");
-    else if (id === "profile") onNavigate("profile");
+    if (id !== "chat") onNavigate(id);
   };
-
   // =========================================================
   // LOAD RIWAYAT + CONNECT WEBSOCKET
   // =========================================================
   useEffect(() => {
     let cancelled = false;
-
     async function openChat() {
       setLoadingMessages(true);
       setError("");
@@ -37,23 +33,21 @@ export default function LiveChat({ onNavigate }) {
         if (!response.ok) throw new Error("Gagal mengambil riwayat chat.");
         const history = await response.json();
         if (!cancelled) setMessages(Array.isArray(history) ? history : []);
+        refreshNotif({ silent: true });
       } catch (err) {
         console.error(err);
         if (!cancelled) setError(err.message);
       } finally {
         if (!cancelled) setLoadingMessages(false);
       }
-
       const token = getAccessToken();
       if (!token) {
         setError("Sesi tidak ditemukan, silakan login ulang.");
         return;
       }
-
       setWsStatus("connecting");
       const ws = new WebSocket(chatWsUrl(token));
       wsRef.current = ws;
-
       ws.onopen = () => {
         if (!cancelled) setWsStatus("open");
       };
@@ -62,6 +56,11 @@ export default function LiveChat({ onNavigate }) {
         try {
           const payload = JSON.parse(event.data);
           setMessages((prev) => [...prev, payload]);
+          if (payload?.sender_type === "admin") {
+            fetch(API.chatBaca, { method: "POST", headers: getAuthHeaders() })
+              .then(() => refreshNotif({ silent: true }))
+              .catch(() => {});
+          }
         } catch (err) {
           console.error("Gagal parse pesan WebSocket:", err);
         }
@@ -77,7 +76,6 @@ export default function LiveChat({ onNavigate }) {
         }
       };
     }
-
     openChat();
     return () => {
       cancelled = true;
@@ -85,11 +83,9 @@ export default function LiveChat({ onNavigate }) {
       wsRef.current = null;
     };
   }, []);
-
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
   function sendMessage(e) {
     e.preventDefault();
     const text = messageText.trim();
@@ -97,7 +93,6 @@ export default function LiveChat({ onNavigate }) {
     wsRef.current.send(JSON.stringify({ isi_pesan: text }));
     setMessageText("");
   }
-
   return (
     <PhoneShell bottom={<BottomNav active="chat" onNavigate={nav} />}>
       <div className="flex h-full min-h-[780px] flex-col bg-slate-50">
@@ -119,13 +114,11 @@ export default function LiveChat({ onNavigate }) {
             </p>
           </div>
         </header>
-
         {error && (
           <div className="mx-5 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
             {error}
           </div>
         )}
-
         {/* ISI CHAT */}
         <div className="flex-1 space-y-4 overflow-y-auto p-5">
           {loadingMessages && (
@@ -174,7 +167,6 @@ export default function LiveChat({ onNavigate }) {
             ))}
           <div ref={bottomRef} />
         </div>
-
         {/* INPUT */}
         <form
           onSubmit={sendMessage}
