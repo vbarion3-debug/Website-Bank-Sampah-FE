@@ -3,12 +3,14 @@ import {
   AlertCircle,
   AlertTriangle,
   Camera,
+  CameraOff,
   CheckCircle2,
   Cpu,
   Loader2,
   Play,
   RefreshCw,
   Save,
+  ScanLine,
   Search,
   Trash2,
   UserRound,
@@ -20,6 +22,9 @@ import { parseWaktu } from "../utils/waktu";
 
 const POLL_PERANGKAT_MS = 5000; // daftar alat saat belum ada sesi
 const POLL_SESI_MS = 2000; // item masuk saat sesi berjalan
+const KAMERA_KEY = "iot_kamera_id"; // kamera terakhir yang dipakai admin
+const FREEZE_MS = 3000; // lama foto hasil scan ditahan di layar
+const CONFIDENCE_RENDAH = 80;
 
 const rupiah = (v) =>
   new Intl.NumberFormat("id-ID", {
@@ -47,9 +52,22 @@ function StatusPill({ status }) {
   );
 }
 
+function pesanKamera(err) {
+  switch (err?.name) {
+    case "NotAllowedError":
+      return "Izin kamera ditolak. Izinkan akses kamera untuk situs ini di pengaturan browser.";
+    case "NotFoundError":
+      return "Kamera tidak ditemukan di perangkat ini.";
+    case "NotReadableError":
+      return "Kamera sedang dipakai aplikasi lain. Tutup aplikasi itu lalu coba lagi.";
+    default:
+      return err?.message || "Gagal membuka kamera.";
+  }
+}
+
 function catatanItem(it) {
   if (it.berat == null) return "Menunggu data timbangan…";
-  if (!it.lengkap) return "Menunggu hasil kamera. Atau pilih jenis secara manual.";
+  if (!it.lengkap) return "Menunggu scan. Tekan SCAN atau pilih jenis secara manual.";
   if (it.id_jenis == null)
     return `Label "${it.jenis_terdeteksi}" belum dipetakan. Pilih jenis sampahnya.`;
   if (it.perlu_perhatian)
@@ -74,6 +92,18 @@ export default function TransaksiIoT({ daftarJenis = [], onSaved }) {
   const [starting, setStarting] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [busyItem, setBusyItem] = useState(null);
+
+  // ---------- kamera (kamera browser milik admin) ----------
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const freezeTimer = useRef(null);
+  const [kameraAktif, setKameraAktif] = useState(false);
+  const [kameraList, setKameraList] = useState([]);
+  const [kameraId, setKameraId] = useState("");
+  const [kameraError, setKameraError] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const [freezeUrl, setFreezeUrl] = useState(""); // foto hasil scan (berkotak), ditahan sebentar
+  const [infoScan, setInfoScan] = useState(null); // respons scan terakhir
 
   const [error, setError] = useState("");
   const [pollError, setPollError] = useState("");
@@ -151,6 +181,124 @@ export default function TransaksiIoT({ daftarJenis = [], onSaved }) {
       clearInterval(t);
     };
   }, [sesiId, muatPerangkat]);
+
+  // =========================================================
+  // KAMERA + SCAN (YOLO diproses di backend)
+  // =========================================================
+  function stopStream() {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+  }
+
+  function matikanKamera() {
+    stopStream();
+    setKameraAktif(false);
+    setFreezeUrl("");
+    setInfoScan(null);
+  }
+
+  async function bukaKamera(idPilihan = "") {
+    setKameraError("");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setKameraError("Browser ini tidak bisa mengakses kamera. Buka lewat HTTPS atau localhost.");
+      return;
+    }
+    const pilih = idPilihan || localStorage.getItem(KAMERA_KEY) || "";
+    const ukuran = { width: { ideal: 1280 }, height: { ideal: 720 } };
+    try {
+      stopStream();
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: pilih
+            ? { ...ukuran, deviceId: { exact: pilih } }
+            : { ...ukuran, facingMode: { ideal: "environment" } },
+        });
+      } catch (err) {
+        // kamera yang tersimpan sudah tidak ada -> pakai kamera bawaan
+        if (pilih && err?.name === "OverconstrainedError") {
+          stream = await navigator.mediaDevices.getUserMedia({ video: ukuran });
+        } else {
+          throw err;
+        }
+      }
+      streamRef.current = stream;
+      const aktifId = stream.getVideoTracks()[0]?.getSettings?.().deviceId || "";
+      // label kamera baru tersedia setelah izin diberikan, jadi daftar diambil di sini
+      const semua = await navigator.mediaDevices.enumerateDevices();
+      setKameraList(semua.filter((d) => d.kind === "videoinput"));
+      setKameraId(aktifId);
+      if (aktifId) localStorage.setItem(KAMERA_KEY, aktifId);
+      setKameraAktif(true);
+    } catch (err) {
+      setKameraAktif(false);
+      setKameraError(pesanKamera(err));
+    }
+  }
+
+  // Ambil 1 frame dari video, kecilkan (sisi terpanjang 640 px = ukuran input YOLO), jadikan JPEG
+  function ambilFrame() {
+    const v = videoRef.current;
+    if (!v || !v.videoWidth) return null;
+    const skala = Math.min(1, 640 / Math.max(v.videoWidth, v.videoHeight));
+    const c = document.createElement("canvas");
+    c.width = Math.round(v.videoWidth * skala);
+    c.height = Math.round(v.videoHeight * skala);
+    c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+    return c.toDataURL("image/jpeg", 0.85);
+  }
+
+  async function scanSampah() {
+    setError("");
+    const frame = ambilFrame();
+    if (!frame) {
+      setError("Gambar kamera belum siap. Tunggu sampai preview muncul, lalu coba lagi.");
+      return;
+    }
+    try {
+      setScanning(true);
+      const response = await fetch(API.iotSesiScan(sesi.id_sesi), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ foto_base64: frame }),
+      });
+      const data = await parseResponse(response);
+      setSesi(data.sesi);
+      setInfoScan(data);
+      if (data.terdeteksi && data.foto_url) {
+        setFreezeUrl(data.foto_url);
+        clearTimeout(freezeTimer.current);
+        freezeTimer.current = setTimeout(() => setFreezeUrl(""), FREEZE_MS);
+      }
+    } catch (err) {
+      setError(err.message || "Gagal memindai sampah.");
+    } finally {
+      setScanning(false);
+    }
+  }
+
+  // Pasang stream ke <video> setiap kali panel sesi tampil / kamera diganti
+  useEffect(() => {
+    const v = videoRef.current;
+    if (kameraAktif && v && streamRef.current && v.srcObject !== streamRef.current) {
+      v.srcObject = streamRef.current;
+      v.play().catch(() => {});
+    }
+  }, [kameraAktif, sesiId, kameraId]);
+
+  // Kamera mati otomatis saat sesi berakhir; dan dilepas saat komponen ditutup
+  useEffect(() => {
+    if (sesiId == null) matikanKamera();
+  }, [sesiId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(
+    () => () => {
+      stopStream();
+      clearTimeout(freezeTimer.current);
+    },
+    []
+  );
 
   // =========================================================
   // CARI NASABAH
@@ -309,6 +457,27 @@ export default function TransaksiIoT({ daftarJenis = [], onSaved }) {
   const terbaru = items.length ? items[items.length - 1] : null;
   const bisaMulai = Boolean(machineId && nasabah) && !starting;
 
+  // Badge di atas foto: hasil scan yang barusan (saat foto ditahan), atau item terbaru bila kamera mati
+  const atasScan = infoScan?.deteksi?.[0];
+  let badge = null;
+  if (freezeUrl && atasScan) {
+    badge = {
+      teks: `${atasScan.nama_jenis || atasScan.label} (${atasScan.confidence}%)`,
+      perhatian: !atasScan.nama_jenis || atasScan.confidence < CONFIDENCE_RENDAH,
+    };
+  } else if (!kameraAktif && terbaru && (terbaru.nama_jenis || terbaru.jenis_terdeteksi)) {
+    badge = {
+      teks:
+        (terbaru.nama_jenis || terbaru.jenis_terdeteksi) +
+        (terbaru.diubah_manual
+          ? " (manual)"
+          : terbaru.confidence != null
+          ? ` (${Number(terbaru.confidence)}%)`
+          : ""),
+      perhatian: terbaru.perlu_perhatian,
+    };
+  }
+
   const optionsJenis = daftarJenis.map((j) => (
     <option key={j.id_jenis} value={j.id_jenis}>
       {j.nama_jenis} — {rupiah(j.harga_per_kg)}/kg
@@ -332,7 +501,7 @@ export default function TransaksiIoT({ daftarJenis = [], onSaved }) {
           }`}
         >
           <span className={`h-1.5 w-1.5 rounded-full ${jumlahTersambung > 0 ? "bg-emerald-500" : "bg-slate-400"}`} />
-          {jumlahTersambung > 0 ? `${jumlahTersambung} alat tersambung` : "Belum ada alat tersambung"}
+          {jumlahTersambung > 0 ? `${jumlahTersambung} timbangan tersambung` : "Belum ada timbangan tersambung"}
         </span>
       </div>
 
@@ -512,38 +681,105 @@ export default function TransaksiIoT({ daftarJenis = [], onSaved }) {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="rounded-xl border border-slate-200 p-4">
               <p className="mb-3 text-sm font-semibold text-slate-600">Deteksi Jenis Sampah (AI)</p>
-              {/* Slot kamera: sekarang menampilkan foto terakhir yang dikirim tim ML.
-                  Kalau nanti ada live stream, ganti isi div ini dengan <video>/<img> stream. */}
+
+              {/* Preview kamera live. Setelah SCAN, foto hasil (berkotak) ditahan beberapa detik. */}
               <div className="relative flex aspect-video items-center justify-center overflow-hidden rounded-lg bg-slate-800">
-                {terbaru?.foto_url ? (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={`h-full w-full object-cover ${kameraAktif && !freezeUrl ? "" : "hidden"}`}
+                />
+                {freezeUrl ? (
                   <img
-                    src={getFileUrl(terbaru.foto_url)}
-                    alt="Foto sampah terakhir"
-                    className="h-full w-full object-cover"
+                    src={getFileUrl(freezeUrl)}
+                    alt="Hasil scan"
+                    className="absolute inset-0 h-full w-full object-cover"
                   />
-                ) : (
-                  <div className="text-center text-slate-400">
-                    <Camera size={32} className="mx-auto" />
-                    <p className="mt-2 text-xs">Menunggu foto dari kamera</p>
-                  </div>
-                )}
-                {terbaru && (terbaru.nama_jenis || terbaru.jenis_terdeteksi) && (
+                ) : !kameraAktif ? (
+                  terbaru?.foto_url ? (
+                    <img
+                      src={getFileUrl(terbaru.foto_url)}
+                      alt="Foto sampah terakhir"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="text-center text-slate-400">
+                      <Camera size={32} className="mx-auto" />
+                      <p className="mt-2 text-xs">Kamera belum aktif</p>
+                    </div>
+                  )
+                ) : null}
+                {badge && (
                   <span
                     className={`absolute left-3 top-3 rounded border bg-slate-900/70 px-2 py-0.5 text-[11px] font-bold ${
-                      terbaru.perlu_perhatian
+                      badge.perhatian
                         ? "border-amber-400 text-amber-300"
                         : "border-emerald-400 text-emerald-300"
                     }`}
                   >
-                    {terbaru.nama_jenis || terbaru.jenis_terdeteksi}
-                    {terbaru.confidence != null && !terbaru.diubah_manual
-                      ? ` (${Number(terbaru.confidence)}%)`
-                      : terbaru.diubah_manual
-                      ? " (manual)"
-                      : ""}
+                    {badge.teks}
                   </span>
                 )}
               </div>
+
+              <div className="mt-3 space-y-2">
+                {!kameraAktif ? (
+                  <button
+                    type="button"
+                    onClick={() => bukaKamera()}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-600 px-4 py-2.5 text-sm font-bold text-emerald-700 transition hover:bg-emerald-50"
+                  >
+                    <Camera size={16} />
+                    Buka Kamera
+                  </button>
+                ) : (
+                  <>
+                    <div className="flex gap-2">
+                      <select
+                        value={kameraId}
+                        onChange={(e) => bukaKamera(e.target.value)}
+                        className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                      >
+                        {kameraList.map((k, i) => (
+                          <option key={k.deviceId || i} value={k.deviceId}>
+                            {k.label || `Kamera ${i + 1}`}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={matikanKamera}
+                        title="Matikan kamera"
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-500 hover:bg-slate-50"
+                      >
+                        <CameraOff size={16} />
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={scanSampah}
+                      disabled={scanning}
+                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-800 disabled:opacity-60"
+                    >
+                      {scanning ? <Loader2 size={16} className="animate-spin" /> : <ScanLine size={16} />}
+                      {scanning ? "Memindai…" : "SCAN"}
+                    </button>
+                  </>
+                )}
+                {kameraError && <p className="text-xs text-red-500">{kameraError}</p>}
+                {infoScan && (
+                  <p
+                    className={`text-xs ${
+                      infoScan.terdeteksi && atasScan?.nama_jenis ? "text-slate-500" : "text-amber-700"
+                    }`}
+                  >
+                    {infoScan.pesan}
+                  </p>
+                )}
+              </div>
+
               <select
                 disabled={!terbaru || busyItem === terbaru?.id}
                 value={terbaru?.id_jenis ?? ""}

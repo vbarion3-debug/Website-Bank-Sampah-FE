@@ -111,6 +111,9 @@ export const API = {
   iotSesiItem: (id, scanId) => `${API_BASE_URL}/admin/iot/sesi/${id}/item/${scanId}`,
   iotSesiSelesai: (id) => `${API_BASE_URL}/admin/iot/sesi/${id}/selesai`,
   iotSesiBatal: (id) => `${API_BASE_URL}/admin/iot/sesi/${id}/batal`,
+  iotSesiScan: (id) => `${API_BASE_URL}/admin/iot/sesi/${id}/scan`,
+  iotModel: `${API_BASE_URL}/admin/iot/model`,
+
 }
 
 export async function parseResponse(response) {
