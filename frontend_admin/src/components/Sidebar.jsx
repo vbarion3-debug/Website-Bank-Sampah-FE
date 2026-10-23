@@ -18,7 +18,7 @@ import { API, getAuthHeaders, clearAdminToken, parseResponse } from "../api";
 
 const items = [
   { to: "/", label: "Transaksi Nasabah", icon: ReceiptText },
-  { to: "/transaksi-yayasan", label: "Transaksi Yayasan", icon: HeartHandshake },
+  { to: "/transaksi-pengepul", label: "Transaksi Pengepul", icon: HeartHandshake },
   { to: "/penarikan", label: "Penarikan Saldo", icon: Wallet },
   { to: "/laporan-pengeluaran", label: "Laporan Pengeluaran", icon: ChartNoAxesCombined },
   { to: "/laporan-pemasukan", label: "Laporan Pemasukan", icon: ChartNoAxesCombined },
@@ -33,8 +33,8 @@ const databaseItems = [
     icon: Users,
   },
   {
-    to: "/database-yayasan",
-    label: "Database Yayasan",
+    to: "/database-pengepul",
+    label: "Database Pengepul",
     icon: Building2,
   },
   {

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import { API, getAuthHeaders } from "../api";
 
-export default function FormYayasan() {
+export default function FormPengepul() {
   const nav = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -55,12 +55,12 @@ export default function FormYayasan() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Gagal menyimpan data yayasan");
+        throw new Error(data.message || "Gagal menyimpan data pengepul");
       }
 
-      alert("Data yayasan berhasil disimpan!");
+      alert("Data pengepul berhasil disimpan!");
 
-      nav("/database-yayasan");
+      nav("/database-pengepul");
     } catch (err) {
       console.error("Error:", err);
       setError(err.message || "Terjadi kesalahan saat menyimpan data");
@@ -71,7 +71,7 @@ export default function FormYayasan() {
 
   return (
     <div className="mx-auto w-full max-w-[980px]">
-      <PageHeader title="Formulir Data Yayasan" />
+      <PageHeader title="Formulir Data Pengepul" />
 
       <form
         onSubmit={handleSubmit}
@@ -80,7 +80,7 @@ export default function FormYayasan() {
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <label className="min-w-0">
             <span className="mb-2 block text-sm font-bold text-slate-700">
-              Nama Yayasan
+              Nama Pengepul
             </span>
 
             <input
@@ -89,7 +89,7 @@ export default function FormYayasan() {
               value={formData.nama}
               onChange={handleChange}
               required
-              placeholder="Masukkan nama yayasan"
+              placeholder="Masukkan nama pengepul"
               className="w-full min-w-0 rounded-lg border border-slate-200 px-4 py-3 outline-none focus:border-emerald-500"
             />
           </label>
@@ -170,7 +170,7 @@ export default function FormYayasan() {
             onChange={handleChange}
             rows="4"
             required
-            placeholder="Masukkan alamat lengkap yayasan"
+            placeholder="Masukkan alamat lengkap pengepul"
             className="w-full min-w-0 rounded-lg border border-slate-200 px-4 py-3 outline-none focus:border-emerald-500"
           />
         </div>
@@ -184,7 +184,7 @@ export default function FormYayasan() {
         <div className="mt-7 flex flex-wrap justify-end gap-3">
           <button
             type="button"
-            onClick={() => nav("/database-yayasan")}
+            onClick={() => nav("/database-pengepul")}
             disabled={loading}
             className="rounded-lg border border-slate-300 px-5 py-3 font-bold text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
           >

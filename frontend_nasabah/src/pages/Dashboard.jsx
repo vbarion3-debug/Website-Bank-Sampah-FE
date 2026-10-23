@@ -23,6 +23,7 @@ import {
 } from "../api";
 import { useData } from "../useData";
 import { useNotifikasi } from "../notifikasi";
+import SetoranTerakhir from "../components/SetoranTerakhir";
 function greeting() {
   const h = new Date().getHours();
   if (h < 11) return "Selamat pagi";
@@ -330,35 +331,7 @@ export default function Dashboard({ onNavigate }) {
                 Belum ada setoran. Setoran sampahmu akan tampil di sini.
               </p>
             ) : (
-              <button
-                type="button"
-                onClick={() => onNavigate("history")}
-                className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-bold text-slate-800">
-                    {[
-                      ...new Set(
-                        (setoran.data.details || [])
-                          .map((d) => d.nama_jenis)
-                          .filter(Boolean)
-                      ),
-                    ].join(", ") || "Setoran Sampah"}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {formatTanggal(setoran.data.tanggal_transaksi)} &bull;{" "}
-                    {formatKg(setoran.data.total_berat)}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-xs font-bold text-emerald-600">
-                    + {rupiah(setoran.data.total_nilai)}
-                  </p>
-                  <span className="mt-1 inline-block rounded-sm bg-emerald-50 px-2 py-0.5 text-[10px] text-emerald-500">
-                    Berhasil
-                  </span>
-                </div>
-              </button>
+              <SetoranTerakhir setoran={setoran.data} />
             )}
           </section>
         </main>

@@ -14,7 +14,7 @@ Konversi dari dokumen `HTML BANK SAMPAH.docx` menjadi project React/Vite dengan 
 
 - `src/components/` reusable UI: Sidebar, PageHeader, StatusBadge, Modal.
 - `src/layouts/AdminLayout.jsx` layout admin dengan Sidebar sekali saja.
-- `src/pages/` halaman Dashboard, Database Nasabah, Laporan Penjualan, Pengumuman, Live Chat, Form Yayasan, Database Yayasan.
+- `src/pages/` halaman Dashboard, Database Nasabah, Laporan Penjualan, Pengumuman, Live Chat, Form Pengepul, Database Pengepul.
 - `src/App.jsx` routing.
 
 ## Catatan

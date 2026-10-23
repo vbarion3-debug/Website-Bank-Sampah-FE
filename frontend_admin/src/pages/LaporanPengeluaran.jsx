@@ -2,12 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Users,
   Download,
+  FileText,
+  Loader2,
   Filter,
   X,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import { API, getAuthHeaders } from "../api";
-import { bulanIniWIB } from "../utils/waktu"
+import { bulanIniWIB, parseWaktu } from "../utils/waktu";
+import { unduhPdf } from "../utils/pdf";
 
 export default function LaporanPengeluaran() {
   const [loading, setLoading] = useState(true);
@@ -20,6 +23,7 @@ export default function LaporanPengeluaran() {
   const [filterNik, setFilterNik] = useState("");
 
   const [showFilter, setShowFilter] = useState(false);
+  const [mengunduhPdf, setMengunduhPdf] = useState(false);
 
   // ======================================================
   // FETCH RIWAYAT TRANSAKSI
@@ -34,7 +38,7 @@ export default function LaporanPengeluaran() {
           Endpoint TETAP:
           GET API.transaksiHistory
         */
-        const response = await fetch(API.transaksiHistory, {
+        const response = await fetch(`${API.transaksiHistory}?limit=1000`, {
           headers: getAuthHeaders(),
         });
 
@@ -109,8 +113,10 @@ export default function LaporanPengeluaran() {
               0,
 
             total:
+              detail.subtotal ??
               detail.total ??
               detail.nominal ??
+              trx.total_nilai ??
               trx.total ??
               trx.nominal ??
               trx.jumlah ??
@@ -169,11 +175,26 @@ export default function LaporanPengeluaran() {
   // ======================================================
   const getTanggalValue = (row) => {
     return (
+      row.tanggal_transaksi ??
       row.tanggal ??
       row.created_at ??
       row.date ??
       ""
     );
+  };
+
+  // Tampilan tanggal di tabel/CSV/PDF (nilai mentah tetap dipakai untuk filter)
+  const formatTanggalTampil = (raw) => {
+    if (!raw) return "-";
+    const d = parseWaktu(raw);
+    if (Number.isNaN(d.getTime())) return String(raw);
+    return d.toLocaleString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   // ======================================================
@@ -328,6 +349,60 @@ export default function LaporanPengeluaran() {
     filterNik;
 
   // ======================================================
+  // DOWNLOAD PDF
+  // ======================================================
+  const downloadPdf = async () => {
+    if (filteredRows.length === 0) {
+      alert("Tidak ada data transaksi yang sesuai dengan filter.");
+      return;
+    }
+    try {
+      setMengunduhPdf(true);
+      const totalNilai = filteredRows.reduce(
+        (sum, r) => sum + Number(r.total ?? r.nominal ?? r.jumlah ?? 0),
+        0
+      );
+      const info = [];
+      if (filterTanggal) info.push(`Tanggal: ${filterTanggal}`);
+      if (filterBulan) info.push(`Bulan: ${filterBulan}`);
+      if (filterNik) info.push(`NIK mengandung: ${filterNik}`);
+      if (info.length === 0) info.push("Semua transaksi (tanpa filter)");
+      await unduhPdf({
+        namaFile: "laporan-pengeluaran-nasabah",
+        judul: "Laporan Pengeluaran Nasabah",
+        info,
+        ringkasan: [
+          { label: "Jumlah item", nilai: String(filteredRows.length) },
+          { label: "Total berat", nilai: formatBerat(totalBerat) },
+          { label: "Total pengeluaran", nilai: formatRupiah(totalNilai) },
+        ],
+        kolom: [
+          { judul: "Tanggal" },
+          { judul: "ID Transaksi" },
+          { judul: "NIK Nasabah" },
+          { judul: "Jenis Sampah" },
+          { judul: "Berat", rata: "right" },
+          { judul: "Total Pengeluaran", rata: "right" },
+        ],
+        baris: filteredRows.map((row) => [
+          formatTanggalTampil(getTanggalValue(row)),
+          row.id_transaksi ?? row.transaksi_id ?? row.id ?? "-",
+          row.nik ?? row.nik_nasabah ?? "-",
+          row.jenis_sampah ?? row.nama_jenis ?? "-",
+          formatBerat(row.berat),
+          formatRupiah(row.total ?? row.nominal ?? row.jumlah ?? 0),
+        ]),
+        totalBaris: ["", "", "", "TOTAL", formatBerat(totalBerat), formatRupiah(totalNilai)],
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Gagal membuat PDF: " + (err.message || "kesalahan tidak diketahui"));
+    } finally {
+      setMengunduhPdf(false);
+    }
+  };
+
+  // ======================================================
   // DOWNLOAD EXCEL / CSV
   // ======================================================
   const downloadExcel = () => {
@@ -349,7 +424,7 @@ export default function LaporanPengeluaran() {
 
     const rows = filteredRows.map(
       (row) => [
-        getTanggalValue(row),
+        formatTanggalTampil(getTanggalValue(row)),
 
         row.id_transaksi ??
           row.transaksi_id ??
@@ -786,16 +861,27 @@ export default function LaporanPengeluaran() {
           </div>
 
           {/* DOWNLOAD */}
-          <button
-            onClick={downloadExcel}
-            className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700"
-          >
-            <Download size={16} />
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={downloadExcel}
+              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700"
+            >
+              <Download size={16} />
 
-            <span>
-              Download Excel
-            </span>
-          </button>
+              <span>
+                Download Excel
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={downloadPdf}
+              disabled={mengunduhPdf}
+              className="flex items-center gap-2 rounded-lg border border-emerald-600 bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {mengunduhPdf ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+              <span>Download PDF</span>
+            </button>
+          </div>
         </div>
 
         {/* ==================================================
@@ -845,9 +931,7 @@ export default function LaporanPengeluaran() {
                         className="border-t border-slate-100"
                       >
                         <td className="px-5 py-4">
-                          {getTanggalValue(
-                            row
-                          ) || "-"}
+                          {formatTanggalTampil(getTanggalValue(row))}
                         </td>
 
                         <td className="px-5 py-4 font-semibold">

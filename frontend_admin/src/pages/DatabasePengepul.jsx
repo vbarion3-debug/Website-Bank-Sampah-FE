@@ -263,10 +263,10 @@ function HargaRow({ item, existing, value, dirty, saving, onChange, onSave, onRe
 }
 
 // ======================================================
-// DATABASE YAYASAN
+// DATABASE PENGEPUL
 // ======================================================
 
-export default function DatabaseYayasan() {
+export default function DatabasePengepul() {
   // -----------------------------
   // LIST
   // -----------------------------
@@ -299,7 +299,7 @@ export default function DatabaseYayasan() {
   // FORM TAMBAH / EDIT
   // -----------------------------
   const [formOpen, setFormOpen] = useState(false)
-  const [editing, setEditing] = useState(null) // objek yayasan, atau null = tambah
+  const [editing, setEditing] = useState(null) // objek pengepul, atau null = tambah
   const [step, setStep] = useState(1) // 1 = info, 2 = harga default per kategori
   const [form, setForm] = useState(EMPTY_FORM)
   const [katPrices, setKatPrices] = useState({}) // { kategoriKey: "3000" }
@@ -528,7 +528,7 @@ export default function DatabaseYayasan() {
     if (!detail || !existing) return
     if (
       !window.confirm(
-        `Hapus harga "${item.nama_jenis}" untuk ${detail.nama_mitra}? Penjualan jenis ini ke yayasan tidak bisa dicatat sampai harga diatur lagi.`
+        `Hapus harga "${item.nama_jenis}" untuk ${detail.nama_mitra}? Penjualan jenis ini ke pengepul tidak bisa dicatat sampai harga diatur lagi.`
       )
     )
       return
@@ -623,8 +623,8 @@ export default function DatabaseYayasan() {
 
   const validateInfo = () => {
     const nama = form.nama_mitra.trim()
-    if (nama.length < 3) return 'Nama yayasan minimal 3 karakter.'
-    if (nama.length > 150) return 'Nama yayasan maksimal 150 karakter.'
+    if (nama.length < 3) return 'Nama pengepul minimal 3 karakter.'
+    if (nama.length > 150) return 'Nama pengepul maksimal 150 karakter.'
     if (form.nama_penanggung_jawab.trim().length > 100)
       return 'Nama penanggung jawab maksimal 100 karakter.'
     if (form.no_hp.trim() && !PHONE_REGEX.test(form.no_hp.trim()))
@@ -709,7 +709,7 @@ export default function DatabaseYayasan() {
       return
     }
 
-    // Yayasan sudah tersimpan; sekarang isi harga semua jenis dari kategori yang diisi
+    // Pengepul sudah tersimpan; sekarang isi harga semua jenis dari kategori yang diisi
     const jobs = entries.flatMap(({ group, harga }) =>
       group.items.map((item) =>
         request(API.mitraHarga(created.id_mitra), {
@@ -816,7 +816,7 @@ export default function DatabaseYayasan() {
     <div className="mx-auto max-w-[1180px]">
       {/* ================= HEADER ================= */}
       <PageHeader
-        title="Database Yayasan"
+        title="Database Pengepul"
         action={
           <div className="flex flex-wrap gap-3">
             <button
@@ -832,7 +832,7 @@ export default function DatabaseYayasan() {
               className="flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-3 font-bold text-white shadow-sm transition hover:bg-emerald-700"
             >
               <Plus size={18} />
-              Tambah Yayasan
+              Tambah Pengepul
             </button>
           </div>
         }
@@ -862,7 +862,7 @@ export default function DatabaseYayasan() {
 
       {/* ================= STATISTIK ================= */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard icon={Building2} label="Total Yayasan" value={stats.total} tone="slate" />
+        <StatCard icon={Building2} label="Total Pengepul" value={stats.total} tone="slate" />
         <StatCard icon={Power} label="Kerjasama Aktif" value={stats.active} tone="emerald" />
         <StatCard icon={Power} label="Nonaktif" value={stats.inactive} tone="rose" />
       </div>
@@ -899,7 +899,7 @@ export default function DatabaseYayasan() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Cari nama yayasan atau penanggung jawab..."
+            placeholder="Cari nama pengepul atau penanggung jawab..."
             className="w-full text-sm outline-none"
           />
           {q && (
@@ -935,23 +935,23 @@ export default function DatabaseYayasan() {
         {loading && rows.length === 0 ? (
           <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-400">
             <Loader2 size={20} className="animate-spin" />
-            Memuat data yayasan...
+            Memuat data pengepul...
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center text-sm text-slate-400">
             <Building2 size={36} className="text-slate-300" />
             {q
-              ? 'Yayasan tidak ditemukan.'
+              ? 'Pengepul tidak ditemukan.'
               : filter !== 'all'
-                ? 'Tidak ada yayasan pada filter ini.'
-                : 'Belum ada yayasan. Klik "Tambah Yayasan" untuk memulai.'}
+                ? 'Tidak ada pengepul pada filter ini.'
+                : 'Belum ada pengepul. Klik "Tambah Pengepul" untuk memulai.'}
           </div>
         ) : (
           <div className={`overflow-x-auto transition ${loading ? 'opacity-60' : ''}`}>
             <table className="w-full min-w-[920px] text-left">
               <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-6 py-4">Yayasan</th>
+                  <th className="px-6 py-4">Pengepul</th>
                   <th className="px-6 py-4">Kontak</th>
                   <th className="px-6 py-4">Alamat</th>
                   <th className="px-6 py-4">Status</th>
@@ -1049,7 +1049,7 @@ export default function DatabaseYayasan() {
       <Modal
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
-        title={detail?.nama_mitra || 'Detail Yayasan'}
+        title={detail?.nama_mitra || 'Detail Pengepul'}
       >
         {detailLoading ? (
           <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-400">
@@ -1058,7 +1058,7 @@ export default function DatabaseYayasan() {
           </div>
         ) : !detail ? (
           <p className="py-8 text-center text-sm text-slate-400">
-            {detailError || 'Data yayasan tidak ditemukan.'}
+            {detailError || 'Data pengepul tidak ditemukan.'}
           </p>
         ) : (
           <div className="space-y-4">
@@ -1233,23 +1233,23 @@ export default function DatabaseYayasan() {
       <Modal
         open={formOpen}
         onClose={closeForm}
-        title={editing ? 'Edit Data Yayasan' : 'Tambah Yayasan'}
+        title={editing ? 'Edit Data Pengepul' : 'Tambah Pengepul'}
       >
         {step === 1 ? (
           <form onSubmit={editing ? submitEdit : nextStep} className="space-y-4">
             {!editing && (
               <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-                Langkah 1 dari 2 · Informasi yayasan
+                Langkah 1 dari 2 · Informasi pengepul
               </p>
             )}
 
             <ErrorBox>{formError}</ErrorBox>
 
-            <Field label="Nama Yayasan">
+            <Field label="Nama Pengepul">
               <input
                 value={form.nama_mitra}
                 onChange={(e) => setForm({ ...form, nama_mitra: e.target.value })}
-                placeholder="Contoh: Yayasan Hijau Lestari"
+                placeholder="Contoh: Pengepul Hijau Lestari"
                 className={inputCls}
                 autoFocus
               />
@@ -1259,7 +1259,7 @@ export default function DatabaseYayasan() {
               <input
                 value={form.nama_penanggung_jawab}
                 onChange={(e) => setForm({ ...form, nama_penanggung_jawab: e.target.value })}
-                placeholder="Nama kontak di pihak yayasan"
+                placeholder="Nama kontak di pihak pengepul"
                 className={inputCls}
               />
             </Field>
@@ -1278,7 +1278,7 @@ export default function DatabaseYayasan() {
                   type="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  placeholder="yayasan@email.com"
+                  placeholder="pengepul@email.com"
                   className={inputCls}
                 />
               </Field>
@@ -1336,14 +1336,14 @@ export default function DatabaseYayasan() {
             <p className="text-sm text-slate-600">
               Isi harga per kategori, nanti otomatis diterapkan ke semua jenis sampah di
               kategori itu. Kategori yang dikosongkan dilewati, dan harga per jenis tetap bisa
-              diubah setelah yayasan dibuat.
+              diubah setelah pengepul dibuat.
             </p>
 
             <ErrorBox>{formError}</ErrorBox>
 
             {groups.length === 0 ? (
               <p className="rounded-xl bg-slate-50 py-8 text-center text-sm text-slate-400">
-                Belum ada jenis sampah. Yayasan tetap bisa disimpan, harga diatur nanti.
+                Belum ada jenis sampah. Pengepul tetap bisa disimpan, harga diatur nanti.
               </p>
             ) : (
               <ul className="space-y-2">
@@ -1390,7 +1390,7 @@ export default function DatabaseYayasan() {
                 className="flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                Simpan Yayasan
+                Simpan Pengepul
               </button>
             </div>
           </div>
@@ -1416,8 +1416,8 @@ export default function DatabaseYayasan() {
 
             <p className="text-sm text-slate-600">
               {statusTarget.is_active
-                ? 'Yayasan yang dinonaktifkan tidak bisa dipilih untuk mencatat penjualan sampah. Data dan harganya tetap tersimpan.'
-                : 'Yayasan akan kembali bisa dipilih untuk mencatat penjualan sampah.'}
+                ? 'Pengepul yang dinonaktifkan tidak bisa dipilih untuk mencatat penjualan sampah. Data dan harganya tetap tersimpan.'
+                : 'Pengepul akan kembali bisa dipilih untuk mencatat penjualan sampah.'}
             </p>
 
             <ErrorBox>{statusError}</ErrorBox>
@@ -1450,7 +1450,7 @@ export default function DatabaseYayasan() {
       {/* ==================================================
           MODAL HAPUS
       ================================================== */}
-      <Modal open={!!deleteTarget} onClose={closeDelete} title="Hapus Yayasan">
+      <Modal open={!!deleteTarget} onClose={closeDelete} title="Hapus Pengepul">
         {deleteTarget && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-4">
@@ -1461,7 +1461,7 @@ export default function DatabaseYayasan() {
             </div>
 
             <p className="text-sm text-slate-600">
-              Yayasan beserta seluruh harga belinya akan dihapus permanen. Jika yayasan sudah
+              Pengepul beserta seluruh harga belinya akan dihapus permanen. Jika pengepul sudah
               punya riwayat penjualan, penghapusan bisa gagal. Gunakan "Nonaktifkan" untuk
               menghentikan kerjasama tanpa menghapus data.
             </p>

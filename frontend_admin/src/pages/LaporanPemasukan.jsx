@@ -1,13 +1,13 @@
 // frontend_admin/src/pages/LaporanPemasukan.jsx
 //
-// Laporan pemasukan = uang yang diterima dari PENJUALAN sampah ke yayasan/mitra pengepul.
+// Laporan pemasukan = uang yang diterima dari PENJUALAN sampah ke pengepul/mitra pengepul.
 // (Pasangan Laporan Pengeluaran, yang mencatat uang keluar ke nasabah.)
 //
 // Endpoint backend:
-//   GET /transaksi-jual-mitra/laporan         ringkasan + per jenis + per yayasan + per bulan + baris (paginasi)
+//   GET /transaksi-jual-mitra/laporan         ringkasan + per jenis + per pengepul + per bulan + baris (paginasi)
 //   GET /transaksi-jual-mitra/laporan/export  CSV mengikuti filter yang sama
 //   GET /transaksi-jual-mitra/stok            stok per jenis (setoran - penjualan)
-//   GET /mitra-pengepul/                      isi filter yayasan
+//   GET /mitra-pengepul/                      isi filter pengepul
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  FileText,
   Filter,
   HeartHandshake,
   Loader2,
@@ -23,6 +24,7 @@ import {
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import { API, getAuthHeaders } from "../api";
+import { unduhPdf } from "../utils/pdf";
 import { bulanIniWIB, parseWaktu } from "../utils/waktu";
 
 // ======================================================
@@ -132,6 +134,7 @@ export default function LaporanPemasukan() {
   const [stok, setStok] = useState([]);
 
   const [mengunduh, setMengunduh] = useState(false);
+  const [mengunduhPdf, setMengunduhPdf] = useState(false);
   const [unduhError, setUnduhError] = useState("");
   const reqId = useRef(0);
 
@@ -256,6 +259,78 @@ export default function LaporanPemasukan() {
   const maxBulan = Math.max(1, ...perBulan.map((b) => Number(b.nilai)));
   const stokAda = stok.filter((s) => Number(s.masuk) > 0 || Number(s.keluar) > 0);
 
+  // ---------- unduh PDF ----------
+  const unduhPdfLaporan = async () => {
+    if (total === 0) {
+      setUnduhError("Tidak ada data yang sesuai dengan filter.");
+      return;
+    }
+    try {
+      setMengunduhPdf(true);
+      setUnduhError("");
+      // Ambil SEMUA baris sesuai filter (backend membatasi 200 baris per request).
+      const sep = qs ? "&" : "";
+      const BATCH = 200;
+      let semua = [];
+      let ringkasanPdf = ringkasan;
+      for (let offset = 0; offset < total; offset += BATCH) {
+        const hasil = await request(
+          `${API.transaksiJualMitraLaporan}?${qs}${sep}limit=${BATCH}&offset=${offset}`
+        );
+        if (offset === 0 && hasil?.ringkasan) ringkasanPdf = hasil.ringkasan;
+        semua = semua.concat(hasil?.data || []);
+      }
+      const baris = semua.flatMap((t) =>
+        (t.details || []).map((d) => [
+          formatTanggal(t.tanggal_transaksi),
+          kodeTransaksi(t),
+          t.nama_mitra || "-",
+          d.nama_jenis || "-",
+          formatBerat(d.berat),
+          formatRupiah(d.harga_per_kg),
+          formatRupiah(d.subtotal),
+          t.dicatat_oleh || "-",
+        ])
+      );
+      const namaPengepul = mitraList.find(
+        (m) => String(m.id_mitra) === String(idMitra)
+      )?.nama_mitra;
+      await unduhPdf({
+        namaFile: "laporan-pemasukan-pengepul",
+        judul: "Laporan Pemasukan Pengepul",
+        info: [
+          `Periode: ${mulai || "awal"} s.d. ${akhir || "sekarang"}`,
+          `Pengepul: ${namaPengepul || "Semua pengepul"}`,
+        ],
+        ringkasan: [
+          { label: "Jumlah transaksi", nilai: String(ringkasanPdf?.jumlah_transaksi ?? total) },
+          { label: "Total berat", nilai: formatBerat(ringkasanPdf?.total_berat) },
+          { label: "Total pemasukan", nilai: formatRupiah(ringkasanPdf?.total_nilai) },
+        ],
+        kolom: [
+          { judul: "Tanggal" },
+          { judul: "ID Transaksi" },
+          { judul: "Pengepul" },
+          { judul: "Jenis Sampah" },
+          { judul: "Berat", rata: "right" },
+          { judul: "Harga/kg", rata: "right" },
+          { judul: "Subtotal", rata: "right" },
+          { judul: "Dicatat oleh" },
+        ],
+        baris,
+        totalBaris: [
+          "", "", "", "TOTAL",
+          formatBerat(ringkasanPdf?.total_berat), "",
+          formatRupiah(ringkasanPdf?.total_nilai), "",
+        ],
+      });
+    } catch (err) {
+      setUnduhError(err.message || "Gagal membuat PDF.");
+    } finally {
+      setMengunduhPdf(false);
+    }
+  };
+
   // ---------- unduh CSV ----------
   const unduh = async () => {
     if (total === 0) {
@@ -282,7 +357,7 @@ export default function LaporanPemasukan() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = "laporan-pemasukan-yayasan.csv";
+      link.download = "laporan-pemasukan-pengepul.csv";
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -322,7 +397,7 @@ export default function LaporanPemasukan() {
               Filter Laporan
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Filter penjualan berdasarkan periode tanggal atau yayasan.
+              Filter penjualan berdasarkan periode tanggal atau pengepul.
             </p>
           </div>
           <div className="flex gap-2">
@@ -397,14 +472,14 @@ export default function LaporanPemasukan() {
               </div>
               <div>
                 <label className="mb-2 block text-sm font-bold text-slate-600">
-                  Yayasan
+                  Pengepul
                 </label>
                 <select
                   value={idMitra}
                   onChange={(e) => ubahFilter(setIdMitra)(e.target.value)}
                   className={inputClass}
                 >
-                  <option value="">Semua yayasan</option>
+                  <option value="">Semua pengepul</option>
                   {mitraList.map((m) => (
                     <option key={m.id_mitra} value={m.id_mitra}>
                       {m.nama_mitra}
@@ -529,7 +604,7 @@ export default function LaporanPemasukan() {
         </div>
       </section>
 
-      {/* ================= PER YAYASAN + TREN ================= */}
+      {/* ================= PER PENGEPUL + TREN ================= */}
       <div
         className={`mb-6 grid grid-cols-1 gap-6 ${
           perBulan.length >= 2 ? "lg:grid-cols-2" : ""
@@ -537,7 +612,7 @@ export default function LaporanPemasukan() {
       >
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <h2 className="mb-5 font-['Poppins'] text-xl font-bold text-slate-800">
-            Pemasukan per Yayasan
+            Pemasukan per Pengepul
           </h2>
           {perMitra.length === 0 ? (
             <p className="py-6 text-center text-sm text-slate-400">
@@ -611,7 +686,7 @@ export default function LaporanPemasukan() {
                 Stok Sampah Saat Ini
               </h2>
               <p className="text-sm text-slate-500">
-                Setoran nasabah dikurangi yang sudah dijual ke yayasan.
+                Setoran nasabah dikurangi yang sudah dijual ke pengepul.
               </p>
             </div>
           </div>
@@ -657,22 +732,33 @@ export default function LaporanPemasukan() {
             <HeartHandshake size={20} className="shrink-0 text-emerald-600" />
             <div className="min-w-0">
               <h2 className="break-words font-['Poppins'] text-lg font-bold text-emerald-900">
-                Laporan Pemasukan Yayasan
+                Laporan Pemasukan Pengepul
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Riwayat penjualan sampah kepada yayasan
+                Riwayat penjualan sampah kepada pengepul
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={unduh}
-            disabled={mengunduh}
-            className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {mengunduh ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-            <span>Download Excel</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={unduh}
+              disabled={mengunduh}
+              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {mengunduh ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+              <span>Download Excel</span>
+            </button>
+            <button
+              type="button"
+              onClick={unduhPdfLaporan}
+              disabled={mengunduh || mengunduhPdf}
+              className="flex items-center gap-2 rounded-lg border border-emerald-600 bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {mengunduhPdf ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+              <span>Download PDF</span>
+            </button>
+          </div>
         </div>
         {unduhError && (
           <p role="alert" className="px-5 pb-3 text-sm font-medium text-red-600 sm:px-6">
@@ -690,7 +776,7 @@ export default function LaporanPemasukan() {
                   </th>
                   <th className="px-5 py-4">Tanggal</th>
                   <th className="px-5 py-4">ID Transaksi</th>
-                  <th className="px-5 py-4">Yayasan</th>
+                  <th className="px-5 py-4">Pengepul</th>
                   <th className="px-5 py-4">Jenis Sampah</th>
                   <th className="px-5 py-4">Berat</th>
                   <th className="px-5 py-4">Total Pemasukan</th>
@@ -708,7 +794,7 @@ export default function LaporanPemasukan() {
                     <td colSpan={7} className="px-5 py-10 text-center text-slate-400">
                       {hasFilter
                         ? "Tidak ada transaksi yang sesuai dengan filter."
-                        : "Belum ada data penjualan ke yayasan."}
+                        : "Belum ada data penjualan ke pengepul."}
                     </td>
                   </tr>
                 ) : (

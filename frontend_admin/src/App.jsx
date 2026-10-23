@@ -7,14 +7,14 @@ import Dashboard from './pages/Dashboard'
 import DatabaseNasabah from './pages/DatabaseNasabah'
 import Pengumuman from './pages/Pengumuman'
 import LiveChat from './pages/LiveChat'
-import FormYayasan from './pages/FormYayasan'
-import DatabaseYayasan from './pages/DatabaseYayasan'
+import FormPengepul from './pages/FormPengepul'
+import DatabasePengepul from './pages/DatabasePengepul'
 import LaporanPengeluaran from './pages/LaporanPengeluaran'
 import LaporanPemasukan from './pages/LaporanPemasukan'
 import DatabaseSampah from './pages/DatabaseSampah'
 import DatabaseAdmin from './pages/DatabaseAdmin'
 import Penarikan from './pages/Penarikan'
-import TransaksiYayasan from './pages/TransaksiYayasan'
+import TransaksiPengepul from './pages/TransaksiPengepul'
 
 export default function App() {
   return (
@@ -32,8 +32,8 @@ export default function App() {
         <Route path="/database-nasabah" element={<DatabaseNasabah />} />
         <Route path="/pengumuman" element={<Pengumuman />} />
         <Route path="/live-chat" element={<LiveChat />} />
-        <Route path="/database-yayasan" element={<DatabaseYayasan />} />
-        <Route path="/database-yayasan/tambah" element={<FormYayasan />} />
+        <Route path="/database-pengepul" element={<DatabasePengepul />} />
+        <Route path="/database-pengepul/tambah" element={<FormPengepul />} />
         <Route path="/penarikan" element={<Penarikan />} />
         <Route path="*" element={<Navigate to="/" replace />} />
         <Route path="/laporan-pengeluaran" element={<LaporanPengeluaran />}/>
@@ -47,7 +47,7 @@ export default function App() {
             </SuperAdminRoute>
           }
         />
-        <Route path="/transaksi-yayasan" element={<TransaksiYayasan />} />
+        <Route path="/transaksi-pengepul" element={<TransaksiPengepul />} />
       </Route>
     </Routes>
   )

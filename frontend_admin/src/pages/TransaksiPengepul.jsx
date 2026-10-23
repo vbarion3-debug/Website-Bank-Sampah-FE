@@ -97,12 +97,12 @@ function Field({ label, children, className = "" }) {
 // ======================================================
 // HALAMAN
 // ======================================================
-export default function TransaksiYayasan() {
+export default function TransaksiPengepul() {
   const nav = useNavigate();
   const keyBerikut = useRef(1);
   const barisBaru = () => ({ key: keyBerikut.current++, id_jenis: "", berat: "" });
 
-  // ---------- yayasan ----------
+  // ---------- pengepul ----------
   const [mitraList, setMitraList] = useState([]);
   const [loadingMitra, setLoadingMitra] = useState(true);
   const [mitraError, setMitraError] = useState("");
@@ -178,15 +178,15 @@ export default function TransaksiYayasan() {
     loadRiwayat();
   }, [loadRiwayat]);
 
-  // Nama & kategori jenis sampah. Endpoint detail yayasan mengembalikan nama_jenis = null,
-  // jadi nama diambil dari daftar jenis sampah (sama seperti halaman Database Yayasan).
+  // Nama & kategori jenis sampah. Endpoint detail pengepul mengembalikan nama_jenis = null,
+  // jadi nama diambil dari daftar jenis sampah (sama seperti halaman Database Pengepul).
   useEffect(() => {
     request(API.jenisSampah)
       .then((r) => setJenisMaster(Array.isArray(r) ? r : r?.data || []))
       .catch(() => {}); // kalau gagal, nama jatuh ke "Jenis #id"
   }, []);
 
-  // Harga beli yayasan terpilih -> menentukan jenis sampah yang boleh dipilih
+  // Harga beli pengepul terpilih -> menentukan jenis sampah yang boleh dipilih
   useEffect(() => {
     if (!idMitra) {
       setHargaList([]);
@@ -269,11 +269,11 @@ export default function TransaksiYayasan() {
     setFormError("");
   };
 
-  const pilihYayasan = (value) => {
+  const pilihPengepul = (value) => {
     sentuh();
     setIdMitra(value);
     setCariJenis("");
-    setItems([]); // harga & jenis beda per yayasan
+    setItems([]); // harga & jenis beda per pengepul
   };
 
   const ubahItem = (key, field, value) => {
@@ -315,9 +315,9 @@ export default function TransaksiYayasan() {
   };
 
   const validasi = () => {
-    if (!idMitra) return "Pilih yayasan tujuan dulu.";
+    if (!idMitra) return "Pilih pengepul tujuan dulu.";
     if (hargaList.length === 0)
-      return "Yayasan ini belum punya harga beli. Tambahkan dulu di Database Yayasan.";
+      return "Pengepul ini belum punya harga beli. Tambahkan dulu di Database Pengepul.";
     if (items.length === 0) return "Pilih minimal satu jenis sampah.";
     for (const it of items) {
       const nama = hargaById.get(String(it.id_jenis))?.nama_jenis || "sampah";
@@ -367,14 +367,14 @@ export default function TransaksiYayasan() {
     }
   };
 
-  const yayasanTerpilih = mitraList.find(
+  const pengepulTerpilih = mitraList.find(
     (m) => String(m.id_mitra) === String(idMitra)
   );
 
   const kembali = () => (window.history.length > 1 ? nav(-1) : nav("/"));
 
   const riwayatTampil = tampilSemua ? riwayat : riwayat.slice(0, RIWAYAT_AWAL);
-  const adaYayasanAktif = mitraAktif.length > 0;
+  const adaPengepulAktif = mitraAktif.length > 0;
 
   // ======================================================
   // RENDER
@@ -385,11 +385,11 @@ export default function TransaksiYayasan() {
       <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="font-['Poppins'] text-3xl font-bold text-emerald-900 break-words">
-            Transaksi Yayasan
+            Transaksi Pengepul
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Catat sampah yang dijual ke yayasan mitra. Harga mengikuti harga
-            beli masing-masing yayasan.
+            Catat sampah yang dijual ke pengepul mitra. Harga mengikuti harga
+            beli masing-masing pengepul.
           </p>
         </div>
         <button
@@ -419,15 +419,15 @@ export default function TransaksiYayasan() {
             </div>
           )}
 
-          <Field label="Pilih Yayasan Tujuan">
+          <Field label="Pilih Pengepul Tujuan">
             <select
               value={idMitra}
-              onChange={(e) => pilihYayasan(e.target.value)}
+              onChange={(e) => pilihPengepul(e.target.value)}
               disabled={loadingMitra || submitting}
               className={inputClass}
             >
               <option value="">
-                {loadingMitra ? "Memuat yayasan..." : "--Pilih Yayasan Mitra--"}
+                {loadingMitra ? "Memuat pengepul..." : "--Pilih Pengepul Mitra--"}
               </option>
               {mitraAktif.map((m) => (
                 <option key={m.id_mitra} value={m.id_mitra}>
@@ -449,24 +449,24 @@ export default function TransaksiYayasan() {
               </button>
             </p>
           )}
-          {!loadingMitra && !mitraError && !adaYayasanAktif && (
+          {!loadingMitra && !mitraError && !adaPengepulAktif && (
             <p className="mt-2 text-xs text-slate-500">
-              Belum ada yayasan aktif.{" "}
+              Belum ada pengepul aktif.{" "}
               <Link
-                to="/database-yayasan"
+                to="/database-pengepul"
                 className="font-bold text-emerald-700 underline"
               >
-                Kelola di Database Yayasan
+                Kelola di Database Pengepul
               </Link>
             </p>
           )}
 
-          {yayasanTerpilih &&
-            (yayasanTerpilih.nama_penanggung_jawab || yayasanTerpilih.no_hp) && (
+          {pengepulTerpilih &&
+            (pengepulTerpilih.nama_penanggung_jawab || pengepulTerpilih.no_hp) && (
               <p className="mt-2 text-xs text-slate-500">
                 Kontak:{" "}
                 <span className="font-semibold text-slate-700">
-                  {[yayasanTerpilih.nama_penanggung_jawab, yayasanTerpilih.no_hp]
+                  {[pengepulTerpilih.nama_penanggung_jawab, pengepulTerpilih.no_hp]
                     .filter(Boolean)
                     .join(", ")}
                 </span>
@@ -479,7 +479,7 @@ export default function TransaksiYayasan() {
               {loadingHarga ? (
                 <p className="flex items-center gap-2 text-xs text-slate-500">
                   <Loader2 size={14} className="animate-spin" />
-                  Memuat harga yayasan...
+                  Memuat harga pengepul...
                 </p>
               ) : hargaError ? (
                 <p className="text-xs font-medium text-red-600">{hargaError}</p>
@@ -487,9 +487,9 @@ export default function TransaksiYayasan() {
                 <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
                   <AlertTriangle size={15} className="mt-0.5 shrink-0" />
                   <span>
-                    Yayasan ini belum punya harga beli untuk jenis sampah mana
+                    Pengepul ini belum punya harga beli untuk jenis sampah mana
                     pun, jadi belum bisa dibuatkan transaksi.{" "}
-                    <Link to="/database-yayasan" className="font-bold underline">
+                    <Link to="/database-pengepul" className="font-bold underline">
                       Tambahkan harga
                     </Link>
                   </span>
@@ -647,7 +647,7 @@ export default function TransaksiYayasan() {
                 setKeterangan(e.target.value);
               }}
               disabled={submitting}
-              placeholder="Catatan khusus atau nomor nota yayasan"
+              placeholder="Catatan khusus atau nomor nota pengepul"
               className={inputClass}
             />
           </Field>
@@ -693,10 +693,10 @@ export default function TransaksiYayasan() {
                 setFilterMitra(e.target.value);
                 setTampilSemua(false);
               }}
-              aria-label="Filter riwayat berdasarkan yayasan"
+              aria-label="Filter riwayat berdasarkan pengepul"
               className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 outline-none focus:border-emerald-500"
             >
-              <option value="">Semua yayasan</option>
+              <option value="">Semua pengepul</option>
               {mitraList.map((m) => (
                 <option key={m.id_mitra} value={m.id_mitra}>
                   {m.nama_mitra}
@@ -711,7 +711,7 @@ export default function TransaksiYayasan() {
               <thead>
                 <tr className="bg-slate-50 text-xs font-bold text-slate-500">
                   <th className="rounded-l-lg px-3 py-2.5">Tanggal</th>
-                  <th className="px-3 py-2.5">Yayasan Tujuan</th>
+                  <th className="px-3 py-2.5">Pengepul Tujuan</th>
                   <th className="px-3 py-2.5">Jenis Sampah</th>
                   <th className="px-3 py-2.5 text-right">Berat (Kg)</th>
                   <th className="px-3 py-2.5 text-right">Nilai</th>
@@ -745,8 +745,8 @@ export default function TransaksiYayasan() {
                 ) : riwayatTampil.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-3 py-10 text-center text-sm text-slate-400">
-                      Belum ada penjualan ke yayasan
-                      {filterMitra ? " untuk yayasan ini" : ""}. Transaksi yang
+                      Belum ada penjualan ke pengepul
+                      {filterMitra ? " untuk pengepul ini" : ""}. Transaksi yang
                       disimpan akan muncul di sini.
                     </td>
                   </tr>
@@ -909,7 +909,7 @@ export default function TransaksiYayasan() {
         {detail && (
           <>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
-              <dt className="text-slate-400">Yayasan</dt>
+              <dt className="text-slate-400">Pengepul</dt>
               <dd className="font-semibold text-slate-700">{detail.nama_mitra}</dd>
               <dt className="text-slate-400">Tanggal</dt>
               <dd className="text-slate-700">{formatTanggal(detail.tanggal_transaksi)}</dd>
