@@ -15,6 +15,7 @@ import DatabaseSampah from './pages/DatabaseSampah'
 import DatabaseAdmin from './pages/DatabaseAdmin'
 import Penarikan from './pages/Penarikan'
 import TransaksiPengepul from './pages/TransaksiPengepul'
+import DatabaseIoT from './pages/DatabaseIoT'
 
 export default function App() {
   return (
@@ -47,6 +48,7 @@ export default function App() {
             </SuperAdminRoute>
           }
         />
+        <Route path="/database-iot" element={<DatabaseIoT />} />
         <Route path="/transaksi-pengepul" element={<TransaksiPengepul />} />
       </Route>
     </Routes>

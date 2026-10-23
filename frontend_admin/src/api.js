@@ -102,6 +102,15 @@ export const API = {
   transaksiJualMitraLaporan: `${API_BASE_URL}/transaksi-jual-mitra/laporan`,
   transaksiJualMitraExport: `${API_BASE_URL}/transaksi-jual-mitra/laporan/export`,
   transaksiJualMitraStok: `${API_BASE_URL}/transaksi-jual-mitra/stok`,
+
+  // IoT
+  iotPerangkat: `${API_BASE_URL}/admin/iot/perangkat`,
+  iotPerangkatDetail: (machineId) => `${API_BASE_URL}/admin/iot/perangkat/${encodeURIComponent(machineId)}`,
+  iotSesiMulai: `${API_BASE_URL}/admin/iot/sesi/mulai`,
+  iotSesi: (id) => `${API_BASE_URL}/admin/iot/sesi/${id}`,
+  iotSesiItem: (id, scanId) => `${API_BASE_URL}/admin/iot/sesi/${id}/item/${scanId}`,
+  iotSesiSelesai: (id) => `${API_BASE_URL}/admin/iot/sesi/${id}/selesai`,
+  iotSesiBatal: (id) => `${API_BASE_URL}/admin/iot/sesi/${id}/batal`,
 }
 
 export async function parseResponse(response) {

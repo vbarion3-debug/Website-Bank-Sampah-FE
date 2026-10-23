@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Wallet,
   HeartHandshake,
+  Cpu,
 } from "lucide-react";
 import { API, getAuthHeaders, clearAdminToken, parseResponse } from "../api";
 
@@ -41,6 +42,11 @@ const databaseItems = [
     to: "/database-sampah",
     label: "Database Sampah",
     icon: Recycle,
+  },
+  { 
+    to: "/database-iot", 
+    label: "Database IoT", 
+    icon: Cpu 
   },
 ];
 

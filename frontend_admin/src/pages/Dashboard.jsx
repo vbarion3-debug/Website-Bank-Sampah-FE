@@ -14,6 +14,7 @@ import {
 import PageHeader from "../components/PageHeader";
 import Modal from "../components/Modal";
 import FormTransaksiManual from "../components/FormTransaksiManual";
+import TransaksiIoT from "../components/TransaksiIoT";
 import {
   API,
   getAuthHeaders,
@@ -295,6 +296,16 @@ export default function Dashboard() {
         <SummaryCard icon={Scale} label="Total Nilai" value={formatRupiah(totalNilaiSemua)} />
       </div>
 
+      {/* TRANSAKSI IoT + ML */}
+      <div className="mb-6">
+        <TransaksiIoT daftarJenis={daftarJenis} onSaved={fetchTransaksiList} />
+      </div>
+
+      {/* CATAT TRANSAKSI MANUAL (foto wajib per item) */}
+      <div className="mb-6">
+        <FormTransaksiManual daftarJenis={daftarJenis} onSaved={fetchTransaksiList} />
+      </div>
+
       {/* DAFTAR TRANSAKSI MASUK */}
       <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-5">
@@ -401,11 +412,6 @@ export default function Dashboard() {
           </table>
         </div>
       </section>
-
-      {/* CATAT TRANSAKSI MANUAL (foto wajib per item) */}
-      <div className="mb-6">
-        <FormTransaksiManual daftarJenis={daftarJenis} onSaved={fetchTransaksiList} />
-      </div>
 
       {/* MODAL DETAIL TRANSAKSI */}
       <Modal
